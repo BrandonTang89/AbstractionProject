@@ -1,4 +1,7 @@
 # ===== Exprimentation with Conducting a Symbolic Simulation =====
+# ==== Here we simulate the circuit assuming stable inputs ====
+# A lot of stuff here is not necessary and just for learning 
+
 clear -all
 source symsim_utils.tcl
 analyze -sv and_2_cycles.sv

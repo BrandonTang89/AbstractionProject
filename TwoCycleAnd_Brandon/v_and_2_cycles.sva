@@ -15,9 +15,9 @@ module and_2_cycles_spec #()
 default clocking @(posedge clk); endclocking
 
 // Example of wrong property
-// and_correct:
-//   assert property
-//     (##2 o == ($past(a, 1) & $past(b, 1) & $past(c, 1) & $past(a, 2) & $past(b, 2)));
+and_wrong:
+  assert property
+    (##2 o == ($past(a, 1) & $past(b, 1) & $past(c, 1) & $past(a, 2) & $past(b, 2)));
 
 and_correct:
   assert property
