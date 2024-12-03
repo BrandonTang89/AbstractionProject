@@ -1,0 +1,41 @@
+
+module megaAnd_spec #(
+    parameter WIDTH=16
+) (
+    input [WIDTH-1:0] operands,
+    input logic trigger,
+    input logic clk,
+    input logic pre_result,
+        input logic pre_result_1,
+    input logic pre_result_2,
+
+    input logic result,
+    input logic trigger_1,
+    input logic trigger_2
+);
+
+logic expected_out = &operands; 
+
+default clocking @(posedge clk); endclocking
+
+no_trigger:
+    assert property (~trigger & ~trigger_1 & ~trigger_2 |=> ~result);
+
+single:
+    assert property (trigger & operands[3] == 0 |=> pre_result_1 == 0);
+
+full_internal:
+    assert property (pre_result == expected_out);
+
+// these two could be combined into a single property with use of $past, but I want to avoid that
+full_out:
+    assert property (expected_out & trigger |=> result);
+full_out_neg:
+    assert property (~expected_out & trigger |=> ~result);
+
+full_out_delay:
+    assert property (expected_out & trigger ##1 ~trigger |=> ~result);
+full_out_neg_delay:
+    assert property (~expected_out & trigger ##1 ~trigger |=> ~result);
+
+endmodule
