@@ -1,0 +1,95 @@
+// Example 3-Way AND Gate with Environmental Constraints
+// This example proves that given (o = x & y & z) under the condition that (x & z) = (y & z),
+// then (o = x and z)
+let implies a b = (NOT a) OR b;
+infixr 5 implies;
+load "idv.fl";
+let tst = 
+    bit_input a b c.
+    bit_output o.
+    CELL "tst" [
+	o <- a '&' b '&' c
+];
+// 
+let pr = flfun2pexlif tst;
+
+// Initially we begin with no symbolic indexing
+let x = variable "x";
+let y = variable "y";
+let z = variable "z";
+let ant = "a" is x in_phase 0
+    and "b" is y in_phase 0
+    and "c" is z in_phase 0
+;
+let cons = "o" is (x AND z) in_phase 0;
+let env_cond = (x AND z) = (y AND z);
+
+let p = variable "p";
+let q = variable "q";
+let indexing_relation = (((NOT p) AND NOT q) implies (NOT x))
+                        AND ((p AND (NOT q)) implies (NOT y)) 
+                        AND (((NOT p) AND q) implies (NOT z))
+                        AND ((p AND q) implies (x AND y AND z));
+
+// We first parameterise away the environment condition
+let param_sub = param env_cond;
+print "Using the param substitution: ";
+param_sub;
+print "\n";
+let paramed_indexing_relation = substitute param_sub indexing_relation;
+let paramed_ant = substitute param_sub ant;
+let paramed_cons = substitute param_sub cons;
+
+print "The parameterised indexing relation is: ";
+paramed_indexing_relation;
+print "\n";
+print "The parameterised antecedent is: ";
+paramed_ant;
+print "\n";
+print "The parameterised consequent is: ";
+paramed_cons;
+print "\n";
+
+// Then we apply the indexing transformation
+// First we need to expand away all the (node is Pred) kind of constraints
+let expand (w, (nd, (F, (f, t)))) = [(w, (nd, (F, (f, t))))]
+/\  expand (w, (nd, (T, (f, t)))) = [(w, (nd, (T, (f, t))))]
+/\  expand (w, (nd, (v, (f, t)))) = [(w AND v, (nd, (T, (f, t)))), (w AND NOT v, (nd, (F, (f, t))))];
+let expandConstraints expand xs = flat (map expand xs);
+
+let expanded_ant = expandConstraints expand paramed_ant;
+let expanded_cons = expandConstraints expand paramed_cons;
+
+print "The expanded antecedent is: ";
+expanded_ant;
+print "\n";
+print "The expanded consequent is: ";
+expanded_cons;
+print "\n";
+
+// Then we apply the transformation
+let tvariables = ["x", "y", "z"];
+let weakPreimage rel pred = Quant_thereis tvariables (rel AND pred);
+let strongPreimage rel pred = (weakPreimage rel pred) AND NOT (Quant_thereis tvariables (rel AND NOT pred));
+let applyTransform transform (w, (nd, (v, (f, t)))) = (transform w, (nd, (v, (f, t))));
+let applyWeakPreimage idx_rel = map (applyTransform (weakPreimage idx_rel));
+let applyStrongPreimage idx_rel = map (applyTransform (strongPreimage idx_rel));
+
+let transformed_ant = applyStrongPreimage paramed_indexing_relation expanded_ant;
+let transformed_cons = applyWeakPreimage paramed_indexing_relation expanded_cons;
+
+print "The transformed antecedent is: ";
+transformed_ant;
+print "\n";
+print "The transformed consequent is: ";
+transformed_cons;
+print "\n";
+
+let vis = STE_debug (pexlif2fsm pr);
+vis;
+let ste_res = STE "-e" vis [] transformed_ant transformed_cons [];
+let result = get_ste_result ste_res "strong";
+
+print "The result is: ";
+result;
+print "\n";

@@ -7,6 +7,7 @@
 clear -all
 source symsim_utils.tcl
 source helpers.tcl
+source symsim_helpers_brandon.tcl
 analyze -sv and_2_cycles.sv
 analyze -sva v_and_2_cycles.sva
 analyze -sv bind_and_2_cycles.sv
@@ -22,40 +23,12 @@ set assertions [check_symsim -model $model_id -list assert]
 
 # === Running a symbolic simulation ===
 # For each var@tick, create a BDD variable
-proc create_bdd_variables {variables ticks} {
-    set bddVars [dict create]
-    foreach variable $variables {
-        foreach tick $ticks {
-            set bdd_variable [check_symsim -expression -var $variable@$tick]
-            dict set bddVars $variable@$tick $bdd_variable
-        }
-    }
-    return $bddVars
-}
-
 set inputs [list a b c]
 set input_ticks [list 2 4]
 set bdd_variables [create_bdd_variables $inputs $input_ticks]
 puts "BDD Variables: $bdd_variables"
 
 # Creates a dictionary mapping input_sig -> [list of tuples (input_sig@tick, not_input_sig@tick, tick:tick)]
-proc create_stimuli_dict {input_signals bdd_variables} {
-    set stimuli_dict [dict create]
-    foreach bdd_var [dict keys $bdd_variables] {
-        set bdd_var_id [dict get $bdd_variables $bdd_var]
-        set not_bdd_var_id [check_symsim -expression -not $bdd_var_id]
-        
-        set signal_name [lindex [split $bdd_var @] 0]
-        set tick [lindex [split $bdd_var @] 1]
-
-        set stimuli [list $bdd_var_id $not_bdd_var_id $tick:$tick]
-        
-        # Add this stimuli tuple to the list at $stimuli_dict[signal_name], creating the list if needed
-        dict lappend stimuli_dict $signal_name $stimuli
-    }
-    return $stimuli_dict
-}
-
 set stimuli_dict [create_stimuli_dict $inputs $bdd_variables]
 puts "Stimuli Dict: $stimuli_dict"
 
