@@ -25,7 +25,9 @@
 **Symbolic Simulation Runs**
 - `simulate_stable.tcl`: Using `check_symsim`, we assume that the input variables are stable and perform a symbolic simulation on the circuit. We can see the output go to $\alpha \land \beta \land \gamma$ in the 6th clock phase. Mostly used to get familar with `check_symsim`.
 - `simulate_unstable.tcl`: Similar to `simulate_stable.tcl` but we assume that the input variables are unstable, and we only provide stimuli during ticks 2 and 4. We can see that the property that needs to be proven is satisfied in the 6th clock phase. This mirrors the symbolic simulation run in `verify_with_utils.tcl`.
-- `simulate_param.tcl`: Does a symbolic simulation that has an input constraint which gets parameterized before the symbolic simulation is run. (deprecated, probably has errors)
 - `simulate_index_transform.tcl`:
     -  Similar to `simulate_unstable.tcl` but does a transformation on the input signals via an indexing relation
     - TODO: figure out how to transform the output constraint as well
+- `simulate_param.tcl`: 
+    - Does a symbolic simulation with input_constraints (environmental constraints) and an indexing transformation (similar to `simulate_index_transform.tcl`)
+    - TODO: Similarly we need to figure out how to transform the output constraint with the parameterized indexing relation

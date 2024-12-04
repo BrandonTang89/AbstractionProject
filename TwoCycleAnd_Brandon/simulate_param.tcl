@@ -1,6 +1,10 @@
-# ===== Exprimentation with symbolic simulation =====
+# ===== Symbolic Simulation with Indexing Transformations =====
+# This script runs a symbolic simulation with an indexing transformation and input constraints
+
 clear -all
 source symsim_utils.tcl
+source helpers.tcl
+source symsim_helpers_brandon.tcl
 analyze -sv and_2_cycles.sv
 analyze -sva v_and_2_cycles.sva
 analyze -sv bind_and_2_cycles.sv
@@ -8,49 +12,93 @@ elaborate -top and_2_cycles_top
 clock -both_edges clk
 reset -none
 
-# Set up the symbolic model of the circuit
-set modelId [check_symsim -model -create]
-set propertyName <embedded>::and_2_cycles_top.spec.and_correct
-check_symsim -model $modelId -list input
-check_symsim -model $modelId -list signal
-check_symsim -model $modelId -list assert
+namespace import symsim::*
+set_symsim_expr_pretty_print_threshold 30
 
-set alpha [check_symsim -expression -var alpha]
-set beta [check_symsim -expression -var beta]
-set gamma [check_symsim -expression -var gamma]
+# === Symsim Set Up ===
+set model_id [check_symsim -model -create]
+set assertions [check_symsim -model $model_id -list assert]
 
-set nalpha [check_symsim -expression -not $alpha]
-set nbeta [check_symsim -expression -not $beta]
-set ngamma [check_symsim -expression -not $gamma]
+# === Set up for a symbolic simulation ===
+set inputs [list a b c]
+set input_ticks [list 2 4]
+set bdd_variables [create_bdd_variables $inputs $input_ticks]
+set stimuli_dict [create_stimuli_dict $inputs $bdd_variables]
 
-# We assume an environmental constraint where alpha AND beta = alpha AND gamma
-set alphaAndBeta [check_symsim -expression -and [list $alpha $beta]]
-set alphaAndGamma [check_symsim -expression -and [list $alpha $gamma]]
-set leftImpRight [check_symsim -expression -implies $alphaAndBeta $alphaAndGamma]
-set rightImpLeft [check_symsim -expression -implies $alphaAndGamma $alphaAndBeta]
-set envt_const [check_symsim -expression -and [list $leftImpRight $rightImpLeft]]
+# === Create indexing relation === 
+set p [VAR p]
+set q [VAR q]
+set r [VAR r]
 
-set envt_const_conanical [check_symsim -expression -get_canonical $envt_const]
-check_symsim -expression -depends $envt_const_conanical
-check_symsim -expression -pretty_print $envt_const_conanical
-check_symsim -expression -pick_assignment [list $envt_const_conanical] -small
+set index_rel [AND \
+    [IMPLIES [AND $p $q $r] [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
+    [IMPLIES [AND $p $q [NOT $r]] [NOT [VAR a@2]]] \
+    [IMPLIES [AND $p [NOT $q] $r] [NOT [VAR b@2]]] \
+    [IMPLIES [AND [NOT $p] $q $r] [NOT [VAR c@2]]] \
+    [IMPLIES [AND [NOT $p] [NOT $q] $r] [NOT [VAR a@4]]] \
+    [IMPLIES [AND [NOT $p] $q [NOT $r]] [NOT [VAR b@4]]] \
+    [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
+]
 
-# We param away gamma (which is sufficient) 
-set param_output [check_symsim -param -expressions [list $envt_const_conanical] -variables [list gamma]]
-set gamma_assignment [dict get [lindex [dict get [dict get $param_output param_res] symb_subst] 0] gamma]
+set index_rel [check_symsim -expression -canonize $index_rel]
+PR $index_rel
 
-# this is the assignment that we will use to param away gamma
-check_symsim -expression -pretty_print $gamma_assignment
-set ngamma_assignment [check_symsim -expression -not $gamma_assignment]
+# === Construct Input Constraints ===
+# Here we assume the input constraint that 
+# ((a@2 AND b@2) = (a@2 AND c@2)) AND ((a@4 AND b@4) = (a@4 AND c@4))
+# this is equivalent to
+# ((a@2 AND b@2) XNOR (a@2 AND c@2)) AND ((a@4 AND b@4) XNOR (a@4 AND c@4))
 
-# Now our stimulus is based on alpha, beta and p0::gamma since we have paramed away gamma
-set my_stimuli_dict [dict create a [list [list $alpha $nalpha 1:$]] b [list [list $beta $nbeta 1:$]] c [list [list $gamma_assignment $ngamma_assignment 1:$]]]
-set my_sequence_id [check_symsim -sequence -create $my_stimuli_dict -name my_sequence]
+set input_constraint [AND \
+    [XNOR [AND [VAR a@2] [VAR b@2]] [AND [VAR a@2] [VAR c@2]]] \
+    [XNOR [AND [VAR a@4] [VAR b@4]] [AND [VAR a@4] [VAR c@4]]] \
+]
 
-set my_seq_resolved_id [check_symsim -sequence -resolve -antecedent $my_sequence_id -name my_sequence_resolved]
-set outputList [check_symsim -eval $modelId -resolved_sequence $my_seq_resolved_id -start_tick 1 -num_ticks 6]
-set outputSeq [lindex $outputList 5]
+PR $input_constraint
 
-check_symsim -sequence $outputSeq -get [list o] -verbose
-set assertions [check_symsim -model $modelId -list assert]
-check_symsim -sequence $outputSeq -get $assertions -verbose
+# === Parameterise away the input constraint ===
+# Here we are fine with parameterising away all the variables
+set param_output [check_symsim -param -expressions [list $input_constraint] -exclude_symbols [list]]
+set param_res [dict get $param_output param_res]
+
+# TODO: figure out what is_sat_exprs really is
+assert [expr {[dict get $param_res is_sat_exprs] == 1}] "Parameterisation failed"
+
+set param_substitutions [lindex [dict get $param_res symb_subst] 0]
+proc rename_param_phase_0 {exp} {return [rename_param_variables $exp 0]}
+
+# We rename the substituted variables 
+set param_subs_renamed [dict_map $param_substitutions rename_param_phase_0]
+
+# == Apply parameterisation to the Antecedent and Indexing Relation ==
+set stimuli_paramed [apply_substitution_stim $stimuli_dict $param_subs_renamed]
+set index_rel_paramed [check_symsim -expression -substitute $index_rel $param_subs_renamed]
+
+
+# === Indexing Transformation ===
+set transformed_ant_stimuli [strong_preimage_stim $stimuli_paramed $index_rel_paramed $bdd_variables]
+
+# Comparing this with the ThreeWayAndGate_correct.fl transformed antecedent, it seems like the right form
+# Even though this transformed version is the same as that without the parameterisation
+
+
+# === Run the symbolic simulation ===
+set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
+set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
+
+# Run the symbolic simulation
+set num_ticks 8
+set eval_out [check_symsim  -eval $model_id \
+                            -resolved_sequence $resolved_seq_id \
+                            -start_tick 1 \
+                            -num_ticks $num_ticks \
+                            -init_states false\
+                            -canonize on]
+
+set eval_seq [dict get $eval_out sequence_id]
+
+# Visualise the simulation
+check_symsim -sequence $eval_seq -get [list a b c o] -verbose
+
+# Remains to transform the output_constraint (property to prove) with the paramed indexing relation
+# and verify that the the transformed property is satisfied

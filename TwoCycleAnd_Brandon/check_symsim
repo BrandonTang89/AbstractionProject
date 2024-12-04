@@ -1031,7 +1031,6 @@ collection, while preventing it from being added to the current garbage collecti
     . Use "-width" to adjust the variable word width in the resulting expression.
 
 -expression -ite if_expr_ID then_expr_ID else_expr_ID [-in_bank bank_name]
-
     Get the expression ID for the expression representing
     "if-then-else" constructed from the given expressions.
 

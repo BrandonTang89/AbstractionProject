@@ -3,6 +3,7 @@
 #######################################
 # Shorthand for BDD expression creation
 #######################################
+proc XNOR {a b} { check_symsim -expression -xnor $a $b }
 proc IMPLIES {a b} { check_symsim -expression -implies $a $b }
 proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quantify $expression $tvariables }
 
@@ -43,6 +44,29 @@ proc create_stimuli_dict {input_signals bdd_variables} {
     return $stimuli_dict
 }
 
+#######################################
+# Procedure to apply a substitution to a stimuli dictionary
+# - For each signal * tick_ranges, apply the substitution to the high and low expressions
+# - Returns a new stimuli dictionary with the substitutions applied
+#######################################
+proc apply_substitution_stim {stimuli sub_dict} {
+    set new_stimuli [dict create]
+    foreach {sig stim_list} [dict get $stimuli] {
+        set new_stim_list [list]
+        foreach stim $stim_list {
+            set high_expr [lindex $stim 0]
+            set low_expr [lindex $stim 1]
+            set tick_range [lindex $stim 2]
+
+            set new_high_expr [check_symsim -expression -substitute $high_expr $sub_dict]
+            set new_low_expr [check_symsim -expression -substitute $low_expr $sub_dict]
+
+            lappend new_stim_list [list $new_high_expr $new_low_expr $tick_range]
+        }
+        dict set new_stimuli $sig $new_stim_list
+    }
+    return $new_stimuli
+}
 
 #######################################
 # Procedures to compute the preimage of an indexing relation
