@@ -24,7 +24,7 @@ default clocking @(posedge clk); endclocking
 // $past(data_in, 1) = mem[$past(addr, 1)] = data_out
 correct_write:
   assert property
-    (we |=> $past(data_in, 1) == data_out);
+    (we |=> 0 == data_out);
 
 endmodule // and_spec
 
