@@ -26,7 +26,7 @@ source symsim_utils.tcl
 source helpers.tcl
 source symsim_helpers_brandon.tcl
 analyze -sv and_2_cycles.sv
-analyze -sva v_and_2_cycles.sva
+analyze -sva and_2_cycle_spec.sva
 analyze -sv bind_and_2_cycles.sv
 elaborate -top and_2_cycles_top
 clock -both_edges clk
@@ -43,6 +43,9 @@ set assertions [check_symsim -model $model_id -list assert]
 set inputs [list a b c]
 set input_ticks [list 2 4]
 set bdd_variables [create_bdd_variables $inputs $input_ticks]
+
+# Create initial un-abstracted stimuli
+set stimuli_dict [create_stimuli_dict $inputs $bdd_variables]
 
 # === Create indexing relation === 
 set p [VAR p]
@@ -65,10 +68,7 @@ set index_rel [check_symsim -expression -canonize $index_rel]
 check_symsim -expression -depends $index_rel
 PR $index_rel
 
-# === Running a symbolic simulation ===
-# Create initial un-abstracted stimuli
-set stimuli_dict [create_stimuli_dict $inputs $bdd_variables]
-
+# === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
 set transformed_ant_stimuli [strong_preimage_stim $stimuli_dict $index_rel $bdd_variables]
 

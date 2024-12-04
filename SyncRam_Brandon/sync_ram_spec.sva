@@ -1,0 +1,30 @@
+// =====================================================================
+// Module containing all verification properties. 
+// =====================================================================
+
+module sync_ram_spec #(
+    parameter DATA_WIDTH = 8,
+    parameter ADDR_WIDTH = 4
+)
+(
+    input logic clk,                       // Clock signal
+    input logic we,                        // Write enable
+    input logic [ADDR_WIDTH-1:0] addr,     // Address bus
+    input logic [DATA_WIDTH-1:0] data_in,  // Data input bus
+    input logic [DATA_WIDTH-1:0] data_out  // Data output bus - input for the spec circuit
+
+    // input logic [DATA_WIDTH-1:0] mem [(2**ADDR_WIDTH)-1:0]; // Memory array
+);
+
+// Clocking - specify the clocking of the properties. Basically, when do you "look"?
+default clocking @(posedge clk); endclocking
+
+
+// When we is enabled, in the next clock cycle, we have
+// $past(data_in, 1) = mem[$past(addr, 1)] = data_out
+correct_write:
+  assert property
+    (we |=> $past(data_in, 1) == data_out);
+
+endmodule // and_spec
+

@@ -6,7 +6,7 @@ module megaAnd_spec #(
     input logic trigger,
     input logic clk,
     input logic pre_result,
-        input logic pre_result_1,
+    input logic pre_result_1,
     input logic pre_result_2,
 
     input logic result,

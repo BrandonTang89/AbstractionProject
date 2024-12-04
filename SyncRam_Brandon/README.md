@@ -1,7 +1,13 @@
-# 2-Cycle And Gate Verification
+# Synchronous RAM Verification
+Here we consider a synchronous RAM that
+- Remembers its state
+- Outputs the value corresponding to the address it reads
+- Writes to the address of the address when the `we` (write-enable) signal is high
+
+(Not currently working...)
 
 ## Files
-**Common Files**
+<!-- **Common Files**
 - `and_2_cycles.sv`: The SystemVerilog file containing the 2-cycle AND gate.
 - `bind_and_2_cycles.sv`: The SystemVerilog file binding the DUT to the specification
 - `v_and_2_cycles.sva`: The SystemVerilog file containing the assertions we want to verify
@@ -30,4 +36,4 @@
     - TODO: figure out how to transform the output constraint as well
 - `simulate_param.tcl`: 
     - Does a symbolic simulation with input_constraints (environmental constraints) and an indexing transformation (similar to `simulate_index_transform.tcl`)
-    - TODO: Similarly we need to figure out how to transform the output constraint with the parameterized indexing relation
+    - TODO: Similarly we need to figure out how to transform the output constraint with the parameterized indexing relation -->

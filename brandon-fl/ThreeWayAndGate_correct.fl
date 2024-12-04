@@ -1,6 +1,8 @@
 // Example 3-Way AND Gate with Environmental Constraints
 // This example proves that given (o = x & y & z) under the condition that (x & z) = (y & z),
 // then (o = x and z)
+// Run with: fl -f ThreeWayAndGate_correct.fl
+
 let implies a b = (NOT a) OR b;
 infixr 5 implies;
 load "idv.fl";
