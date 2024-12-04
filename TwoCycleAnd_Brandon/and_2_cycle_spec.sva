@@ -1,6 +1,4 @@
 // =====================================================================
-// Simple 3-input, unit-delay AND gate example to illustrate rSTE.
-//
 // Module containing all verification properties. 
 // =====================================================================
 
@@ -8,7 +6,7 @@ module and_2_cycles_spec #()
 (
  input logic  clk,
  input logic  a,b,c,
- input logic o            // Note - the output in the DUT becomes an input here
+ input logic  o            // Note - the output in the DUT becomes an input here
 );
 
 // Clocking - specify the clocking of the properties. Basically, when do you "look"?

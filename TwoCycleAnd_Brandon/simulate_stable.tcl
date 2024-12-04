@@ -5,7 +5,7 @@
 clear -all
 source symsim_utils.tcl
 analyze -sv and_2_cycles.sv
-analyze -sva v_and_2_cycles.sva
+analyze -sva and_2_cycle_spec.sva
 analyze -sv bind_and_2_cycles.sv
 elaborate -top and_2_cycles_top
 clock -both_edges clk

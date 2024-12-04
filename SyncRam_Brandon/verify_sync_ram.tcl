@@ -8,18 +8,10 @@
 
 # Clear everything, in case you want to re-load this file or start again.
 clear -all
-
-# Parse the DUT - the "Design Under Test"
-analyze -sv and_2_cycles.sv
-
-# Parse the specification module
-analyze -sva and_2_cycle_spec.sva
-
-# Parse and load in the bin directive
-analyze -sv bind_and_2_cycles.sv
-
-# Now "instantiate" everything. THis will create an and_top module, containing a "spec" module.
-elaborate -top and_2_cycles_top
+analyze -sv sync_ram.sv
+analyze -sva sync_ram_spec.sva
+analyze -sv bind_sync_ram.sv
+elaborate -top sync_ram
 
 # At this point, try
 # - opening the schematic viewer on the circuit; right-click on the Design Hierarchy.
@@ -33,4 +25,4 @@ reset -none
 # You are now ready to do some verification.
 # - try doing the proof with the GUI. And/or excecuting this:
 
-prove -property "and_2_cycles_top.spec.and_correct"
+prove -property "sync_ram.spec.correct_write"
