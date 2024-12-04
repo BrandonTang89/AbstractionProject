@@ -23,8 +23,11 @@ module sync_ram #(
     always_ff @(posedge clk) begin
         if (we) begin
             mem[addr] <= data_in;  // Write data to memory
+            data_out <= 0;          // Output 0 during write cycle
         end
-        data_out <= mem[addr];      // Read data from memory
+        else begin
+            data_out <= mem[addr];      // Read data from memory
+        end
     end
 
 endmodule
