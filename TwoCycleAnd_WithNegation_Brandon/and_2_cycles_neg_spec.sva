@@ -1,0 +1,32 @@
+// =====================================================================
+// Module containing all verification properties. 
+// =====================================================================
+
+module and_2_cycles_neg_spec #()
+(
+ input logic  clk,
+ input logic  a,b,c,
+ input logic  o, // Note - the output in the DUT becomes an input here
+ input logic  no
+);
+
+// Clocking - specify the clocking of the properties. Basically, when do you "look"?
+default clocking @(posedge clk); endclocking
+
+// Example of an invalid property
+and_wrong:
+  assert property
+    (##2 o == ($past(a, 1) & $past(b, 1) & $past(c, 1) & $past(a, 2) & $past(b, 2)));
+
+// Example of a valid property
+and_correct:
+  assert property
+    (##2 o == ($past(a, 1) & $past(b, 1) & $past(c, 1) & $past(a, 2) & $past(b, 2) & $past(c, 2)));
+
+either_o_or_no:
+  assert property
+    (##2 o | no);
+
+
+endmodule // and_spec
+

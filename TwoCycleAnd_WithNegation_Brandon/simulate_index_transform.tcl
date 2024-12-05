@@ -22,16 +22,17 @@
 
 # The initial set up is the same as for the no-abstraction simulation
 clear -all
-analyze -sv and_2_cycles.sv
-analyze -sva and_2_cycle_spec.sva
-analyze -sv bind_and_2_cycles.sv
-elaborate -top and_2_cycles_top
+analyze -sv and_2_cycles_neg.sv
+analyze -sva and_2_cycles_neg_spec.sva
+analyze -sv bind_and_2_cycles_neg.sv
+elaborate -top and_2_cycles_neg_top
 clock -both_edges clk
 reset -none
 
 source symsim_utils.tcl
 source helpers.tcl
 source symsim_helpers_brandon.tcl
+
 namespace import symsim::*
 set_symsim_expr_pretty_print_threshold 30
 
@@ -88,7 +89,7 @@ set eval_out [check_symsim  -eval $model_id \
 set eval_seq [dict get $eval_out sequence_id]
 
 # Visualise the simulation
-check_symsim -sequence $eval_seq -get [list a b c o] -verbose
+check_symsim -sequence $eval_seq -get [list a b c o no] -verbose
 # Here we can manually inspect to see that (at tick 6):
 # o is high iff p&q&r and low if any input variable is constrained to be low
 # remains to see how to automate this checking
