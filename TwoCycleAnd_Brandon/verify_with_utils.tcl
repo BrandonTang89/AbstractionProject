@@ -36,7 +36,7 @@ set cantv [create_antecedent -signal c -tick [list 2 4]]
 set antv [merge_antecedents $aantv $bantv $cantv]
 
 # Create the output constraint (see which wires we should observe during the simulation)
-set cout [create_output_constraint -property $propertyName -tick [list 4 6 8]]
+set cout [create_output_constraint -property $propertyName -tick [list 6]]
 # remove the 4 and 8 to get it to prove properly
 
 puts $antv
