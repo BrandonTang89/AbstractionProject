@@ -61,7 +61,9 @@ set index_rel [AND \
     [IMPLIES [AND [NOT $p] [NOT $q] $r] [NOT [VAR a@4]]] \
     [IMPLIES [AND [NOT $p] $q [NOT $r]] [NOT [VAR b@4]]] \
     [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
+    [IMPLIES [AND [NOT $p] [NOT $q] [NOT $r]] [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
 ]
+    # [OR $p $q $r] \
 
 set index_rel [check_symsim -expression -canonize $index_rel]
 
