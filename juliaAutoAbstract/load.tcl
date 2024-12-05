@@ -11,4 +11,4 @@ namespace import symsim::*
 
 source auto_abstract_simple.tcl
 
-puts [PR [simple_bp y6 [VAR x0] [NOT [VAR x0]]]]
+puts [PR [simple_bp y6 [VAR x_0] [NOT [VAR x_0]]]]

@@ -55,16 +55,18 @@ proc is_VAR {sig} {
 variable ivar_index
 set ivar_index 0
 
+# Convention: free variables have name `x_*`, variables generated from a signal have name `v_*`
+
 proc fresh_var {} {
     variable ivar_index
     set ivar_index [expr {$ivar_index + 1}]
     puts [concat "generating fresh var" $ivar_index]
-    return [VAR "x$ivar_index"]
+    return [VAR "x_$ivar_index"]
 }
 
 proc simple_bp {root high low} {
     if {[is_VAR $root]} {
-        set t [VAR $root]
+        set t [VAR v_$root]
         return [AND [IMPL $high $t] [IMPL $low [NOT $t]]]
     } elseif {[is_NOT $root]} {
         return [simple_bp [strip_NOT $root] $low $high]
