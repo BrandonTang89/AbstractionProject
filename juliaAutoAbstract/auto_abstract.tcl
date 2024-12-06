@@ -88,9 +88,6 @@ proc find_big_ands {sig C} {
         }
     }
 
-    puts $oinps
-    puts $cis
-
     return [list $cis $oinps]
 }
 
