@@ -2,6 +2,10 @@
 source auto_abstract_simple.tcl
 
 proc freevars_signal {sig} {
+    if {[get_signal_info $sig] == "input"} {
+        # special case: if we have an input variable, it's fanin will be empty, but it drives itself.
+        return $sig
+    }
     return [get_fanin -transitive $sig -filter_out non_boundary -silent]
 }
 
@@ -18,7 +22,7 @@ proc is_subset {a b} {
 
 # Converts a signal (which is described as a bexpr in the paper) to a STE variable.
 proc bexpr2bdd {sig} {
-    return [VAR v_$root]
+    return [VAR v_$sig]
 }
 
 # Is the 'behavior' driving a signal an XNOR? (uses the same ugly/unstable logic as that in auto_abstract_simple)
@@ -49,7 +53,7 @@ proc sort_inp_args {C sig} {
 proc get_case_exprs {name n} {
     # for now, only deal with n=2
     if {$n != 2} {
-        error "get_case_exprs for n!=2 is currently unimplemented"
+        error "get_case_exprs for n!=2 is currently unimplemented (your n: $n)"
     }
 
     return [list [VAR c_$name] [NOT [VAR c_$name]]]
@@ -84,6 +88,72 @@ proc find_big_ands {sig C} {
         }
     }
 
-    return [list cis oinps]
+    puts $oinps
+    puts $cis
+
+    return [list $cis $oinps]
 }
 
+proc big_AND {ops} {
+    if {[llength $ops] == 0} {
+        return [TRUE]
+    } elseif {[llength $ops] == 1} {
+        return [bexpr2bdd [lindex $ops 0]]
+    } else {
+        return [AND [bexpr2bdd [lindex $ops 0]] [big_AND [lrange $ops 1 end]]]
+    }
+}
+
+
+proc advanced_bp {C sig high low name} {
+    if {[is_subset [freevars_signal $sig] $C] || [is_VAR $sig]} {
+        return [list [list [bexpr2bdd $sig] $high $low]]
+    } elseif {[is_XNOR $sig]} {
+        set is [sort_inp_args $C $sig]
+        if {[is_subset [freevars_signal [lindex $is 0]] C]} {
+            set c [bexpr2bdd $sig]
+            # TODO I don't understand what this `h c` notation does... there isn't really an obvious free variable to substitute for... 
+            # I _think_ it's just going to be (h AND c) but I need to think about this some more (why not just write that in the paper if it's the case!)
+            error "xnor implementation unfinished"
+        } else {
+            set xs [get_case_exprs $name 2]
+            set ns [make_unique_names $name 2]
+            error "xnor implementation unfinished"
+        }
+    } elseif {[is_NOT $sig]} {
+        return [advanced_bp $C [strip_NOT $sig] $low $high $name]
+    } elseif {[is_AND $sig]} {
+        set cisoinps [find_big_ands $sig $C]
+        set cis [lindex $cisoinps 0]
+        set oinps [lindex $cisoinps 1]
+        set noinps [llength $oinps]
+        set c [big_AND $cis]
+        set res [list]
+        if {[llength $cis] > 0} {
+            lappend res [list $c $high [FALSE]]
+        }
+        set cases [get_case_exprs $name $noinps]
+        if {$high == [FALSE]} {
+            # TODO: does this require that high is actually syntactically false or just that it is UNSAT
+            set names [make_same_names $name $noinps]
+        } else {
+            set names [make_unique_names $name $noinps]
+        }
+
+        foreach b $oinps s $cases n $names {
+            set res [concat $res [advanced_bp $C $b $high [AND $low [AND $s $c]] $n]]
+        }
+
+        return $res
+    } else {
+            error [concat "unknown expression in fanin for " $sig]
+            return [list]
+    }
+}
+
+
+proc PR_bp {triples} {
+    foreach triple $triples {
+        puts [concat [PR [lindex $triple 0]] "->" [PR [lindex $triple 1]] "//" [PR [lindex $triple 2]]]
+    }
+}
