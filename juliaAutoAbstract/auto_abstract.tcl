@@ -12,7 +12,7 @@ proc freevars_signal {sig} {
 # Returns true if a is a subset (possibly equality) of b
 proc is_subset {a b} {
     foreach x $a {
-        if {[lsearch $b x] == -1} {
+        if {[lsearch $b $x] == -1} {
             return 0
         }
     }
