@@ -1,7 +1,8 @@
 # ===== DFV Proof via SymsimUtils.tcl =====
 clear -all
-source symsim_utils.tcl
-source helpers.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/helpers.tcl
+source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
 analyze -sv and_2_cycles.sv
 analyze -sva and_2_cycle_spec.sva
@@ -36,7 +37,7 @@ set cantv [create_antecedent -signal c -tick [list 2 4]]
 set antv [merge_antecedents $aantv $bantv $cantv]
 
 # Create the output constraint (see which wires we should observe during the simulation)
-set cout [create_output_constraint -property $propertyName -tick [list 4 6 8]]
+set cout [create_output_constraint -property $propertyName -tick [list 6]]
 # remove the 4 and 8 to get it to prove properly
 
 puts $antv

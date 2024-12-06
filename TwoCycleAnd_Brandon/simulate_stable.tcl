@@ -3,7 +3,9 @@
 # A lot of stuff here is not necessary and just for learning 
 
 clear -all
-source symsim_utils.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/helpers.tcl
+source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 analyze -sv and_2_cycles.sv
 analyze -sva and_2_cycle_spec.sva
 analyze -sv bind_and_2_cycles.sv

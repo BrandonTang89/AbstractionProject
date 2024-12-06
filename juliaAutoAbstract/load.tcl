@@ -6,7 +6,7 @@ elaborate -top bp_test
 clock -none
 reset -none
 
-source ../TwoCycleAnd_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
 namespace import symsim::*
 
 source auto_abstract_simple.tcl
