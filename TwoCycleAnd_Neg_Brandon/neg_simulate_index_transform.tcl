@@ -29,9 +29,9 @@ elaborate -top and_2_cycles_neg_top
 clock -both_edges clk
 reset -none
 
-source symsim_utils.tcl
-source helpers.tcl
-source symsim_helpers_brandon.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/helpers.tcl
+source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 
 namespace import symsim::*
 set_symsim_expr_pretty_print_threshold 30
@@ -61,9 +61,9 @@ set index_rel [AND \
     [IMPLIES [AND [NOT $p] [NOT $q] $r] [NOT [VAR a@4]]] \
     [IMPLIES [AND [NOT $p] $q [NOT $r]] [NOT [VAR b@4]]] \
     [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
-    [IMPLIES [AND [NOT $p] [NOT $q] [NOT $r]] [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
+    [OR $p $q $r] \
 ]
-    # [OR $p $q $r] \
+    # [IMPLIES [AND [NOT $p] [NOT $q] [NOT $r]] [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
 
 set index_rel [check_symsim -expression -canonize $index_rel]
 
@@ -97,3 +97,15 @@ check_symsim -sequence $eval_seq -get [list a b c o no] -verbose
 # remains to see how to automate this checking
 
 # check_symsim -sequence $eval_seq -get $assertions -verbose
+
+# === STE Style Consequence ===
+set and_all [eval AND [dict values $bdd_variables]]
+set ste_cons [dict create o [list [list $and_all [NOT $and_all] 6:6]]]
+
+set transformed_cons [strong_preimage_stim $ste_cons $index_rel $bdd_variables]
+set o_stim [dict get $transformed_cons o]
+set o_high [lindex [lindex $o_stim 0] 0]
+set o_low [lindex [lindex $o_stim 0] 1]
+
+PR $o_high
+PR $o_low

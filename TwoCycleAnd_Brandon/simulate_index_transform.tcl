@@ -29,9 +29,9 @@ elaborate -top and_2_cycles_top
 clock -both_edges clk
 reset -none
 
-source symsim_utils.tcl
-source helpers.tcl
-source symsim_helpers_brandon.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/helpers.tcl
+source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
 set_symsim_expr_pretty_print_threshold 30
 

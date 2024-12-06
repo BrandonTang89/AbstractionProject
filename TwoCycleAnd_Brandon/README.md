@@ -5,7 +5,7 @@
 - `and_2_cycles.sv`: The SystemVerilog file containing the 2-cycle AND gate.
 - `bind_and_2_cycles.sv`: The SystemVerilog file binding the DUT to the specification
 - `v_and_2_cycles.sva`: The SystemVerilog file containing the assertions we want to verify
-- `verify_and_2_cycles.sby`: The SymbiYosys file containing the commands to run a Jasper proof without `check_symsim`
+- `verify_and_2_cycles.tcl`: The SymbiYosys file containing the commands to run a Jasper proof without `check_symsim`
 - `symsim_utils.tcl`: A tcl script that contains recepies and procedures to help with DFV proofs
     - Note that around line 490, we change the line to use `dict set` rather than `dict lappend` to add a new key to the dictionary.
     
