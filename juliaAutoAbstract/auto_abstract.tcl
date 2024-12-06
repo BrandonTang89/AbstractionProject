@@ -154,6 +154,6 @@ proc advanced_bp {C sig high low name} {
 
 proc PR_bp {triples} {
     foreach triple $triples {
-        puts [concat [PR [lindex $triple 0]] "->" [PR [lindex $triple 1]] "//" [PR [lindex $triple 2]]]
+        puts [concat [PR [lindex $triple 0]] "<-" [PR [lindex $triple 1]] "//" [PR [lindex $triple 2]]]
     }
 }
