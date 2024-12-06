@@ -1,7 +1,7 @@
 # === Implementation of the Automatic Abstraction algorithm from Adams, 2007 ===
 
 # We're going to use the logical structure in the symsim module, and symsim_utils gives a much nicer way of expressing that
-source ../TwoCycleAnd_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
 
 namespace import symsim::*
 proc IMPL {x y} {check_symsim -expression -implies $x $y}

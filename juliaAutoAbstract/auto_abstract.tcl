@@ -45,3 +45,45 @@ proc sort_inp_args {C sig} {
     }
     return $sigs
 }
+
+proc get_case_exprs {name n} {
+    # for now, only deal with n=2
+    if {$n != 2} {
+        error "get_case_exprs for n!=2 is currently unimplemented"
+    }
+
+    return [list [VAR c_$name] [NOT [VAR c_$name]]]
+}
+
+proc make_same_names {name n} {
+    set names [list]
+    for {set i 1} {$i < $n} {incr i} {
+        lappend names $name
+    }
+    return $names
+}
+
+proc make_unique_names {name n} {
+    set names $name\_0
+    for {set i 1} {$i < $n} {incr i} {
+        lappend names $name\_$i
+    }
+    return $names
+}
+
+# TODO work for more than one AND
+proc find_big_ands {sig C} {
+    set is [destruct_AND $sig]
+    set cis [list]
+    set oinps [list]
+    foreach i $is {
+        if {[is_subset [freevars_signal $i] C]} {
+            lappend cis $i
+        } else {
+            lappend oinps $i
+        }
+    }
+
+    return [list cis oinps]
+}
+
