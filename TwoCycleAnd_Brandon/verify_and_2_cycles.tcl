@@ -13,7 +13,7 @@ clear -all
 analyze -sv and_2_cycles.sv
 
 # Parse the specification module
-analyze -sva and_2_cycle_spec.sva
+analyze -sva and_2_cycle_spec_mod.sva
 
 # Parse and load in the bin directive
 analyze -sv bind_and_2_cycles.sv
@@ -33,4 +33,5 @@ reset -none
 # You are now ready to do some verification.
 # - try doing the proof with the GUI. And/or excecuting this:
 
-prove -property "and_2_cycles_top.spec.and_correct"
+# prove -property "and_2_cycles_top.spec.and_correct"
+prove -all

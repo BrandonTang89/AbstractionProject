@@ -5,7 +5,7 @@ source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
 analyze -sv and_2_cycles.sv
-analyze -sva and_2_cycle_spec.sva
+analyze -sva and_2_cycle_spec_mod.sva
 analyze -sv bind_and_2_cycles.sv
 elaborate -top and_2_cycles_top
 clock -both_edges clk

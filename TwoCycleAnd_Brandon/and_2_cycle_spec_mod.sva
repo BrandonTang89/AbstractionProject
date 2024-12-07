@@ -1,0 +1,47 @@
+// =====================================================================
+// Module containing all verification properties. 
+// =====================================================================
+
+module and_2_cycles_spec #()
+(
+ input logic  clk,
+ input logic  a,b,c,
+ input logic  o            
+);
+
+// Clocking - specify the clocking of the properties. Basically, when do you "look"?
+default clocking @(posedge clk); endclocking
+
+logic a_past_1, b_past_1, c_past_1;
+logic a_past_2, b_past_2, c_past_2;
+
+logic property_and_correct, property_and_wrong;
+
+always_ff @(posedge clk) begin
+  // Assign the past values of the inputs
+  a_past_1 <= a;
+  b_past_1 <= b;
+  c_past_1 <= c;
+  a_past_2 <= a_past_1;
+  b_past_2 <= b_past_1;
+  c_past_2 <= c_past_1;
+
+end
+
+// Compute the property correctness as part of the circuit
+assign property_and_correct = (o == (a_past_1 & b_past_1 & c_past_1 & a_past_2 & b_past_2 & c_past_2));
+assign property_and_wrong = (o == (a_past_1 & b_past_1 & c_past_1 & a_past_2 & b_past_2));
+
+// Example of an invalid property
+and_wrong:
+  assert property
+    (##2 property_and_wrong);
+
+// Example of a valid property
+and_correct:
+  assert property
+    (##2 property_and_correct);
+
+
+endmodule // and_spec
+
