@@ -109,3 +109,36 @@ proc strong_preimage_stim {stimuli_dict index_rel target_variables} {
 proc weak_preimage_stim {stimuli_dict index_rel target_variables} {
     return [apply_preimage weak_preimage $stimuli_dict $index_rel $target_variables]
 }
+
+#######################################
+# Procedures to get the high and low values of a signal at a tick
+#######################################
+proc get_high_low {tick sim_seq} {
+    foreach {seq_tup} $sim_seq {
+        set high [lindex $seq_tup 0]
+        set low [lindex $seq_tup 1]
+        set tick_range [lindex $seq_tup 2]
+        
+        if {[tick_in_range $tick $tick_range]} {
+            return [list $high $low]
+        }
+    }
+    return [list "ERROR" "ERROR"]
+}
+
+proc tick_in_range {tick tick_range} {
+    set range [split $tick_range ":"]
+    set from [lindex $range 0]
+    set to [lindex $range end]
+    
+    if {$to == "$"} {
+        set to [expr $tick] 
+        # tick will be included
+    }
+
+    if {$tick >= $from && $tick <= $to} {
+        return 1
+    } else {
+        return 0
+    }
+}
