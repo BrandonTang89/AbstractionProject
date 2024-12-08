@@ -1,7 +1,7 @@
 # === Helper Functions that Complement symsim_utils.tcl ===
 # You should also import helpers.tcl in your script to use these functions
 
-#######################################
+########################################
 # Shorthand for BDD expression creation
 ########################################
 proc XNOR {a b} { check_symsim -expression -xnor $a $b }
@@ -10,39 +10,32 @@ proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quan
 
 
 #######################################
-# Procedure to create BDD variables signal@tick for each (signal, tick) in variables * ticks
-# - Returns a dictionary of the form {signal@tick: id(signal@tick)}
-#######################################
-proc create_bdd_variables {variables ticks} {
-    set bddVars [dict create]
-    foreach variable $variables {
-        foreach tick $ticks {
-            set bdd_variable [check_symsim -expression -var $variable@$tick]
-            dict set bddVars $variable@$tick $bdd_variable
+# Analogue of create_antecedent for dual rail signals
+#  - Supports wide siggnals
+
+# Differences between this and the regular create_antecedent:
+# - if tick_list is singleton, we still use the @ delimiter
+######################################
+proc create_dual_rail_antecedent {signal tick_list} {
+    set antv [dict create]
+    set bit_list [get_signal_info -bit_blast $signal]
+    foreach signal_bit $bit_list {
+        set stim_list [list]
+        foreach tick $tick_list {
+            set bdd_variable [VAR $signal_bit@$tick]
+            lappend stim_list [list $bdd_variable [NOT $bdd_variable] $tick:$tick]
         }
+        dict set antv $signal_bit $stim_list
     }
-    return $bddVars
+    return $antv
 }
 
-#######################################
-# Procedure to create stimuli dict to be used in sequence creation
-# - Assumes the bdd_variables are in the form input_signal@tick
-# - Assigns to each signal sig: (sig@tick, not sig@tick, tick:tick)
-# - Returns a dictionary of the form {input_signal: [(id(sig@tick), id(not sig@tick), tick:tick)]}
-#######################################
-proc create_stimuli_dict {input_signals bdd_variables} {
-    set stimuli_dict [dict create]
-    foreach bdd_var [dict keys $bdd_variables] {
-        set bdd_var_id [dict get $bdd_variables $bdd_var]
-        set not_bdd_var_id [check_symsim -expression -not $bdd_var_id]
-
-        set signal_name [lindex [split $bdd_var @] 0]
-        set tick [lindex [split $bdd_var @] 1]
-
-        set stimuli [list $bdd_var_id $not_bdd_var_id $tick:$tick]
-        dict lappend stimuli_dict $signal_name $stimuli
+proc merge_dual_rail_antecedents {args} {
+    set ant [dict create]
+    foreach a $args {
+	    dict map {key value} $a {dict append ant $key "$value"}
     }
-    return $stimuli_dict
+    return $ant
 }
 
 #######################################
@@ -211,4 +204,49 @@ proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbo
         dict set proof_result [list $property_signal $property_tick] $property_sat
     }
     return $proof_result
+}
+
+
+#########################################################
+# DEPRECATED
+# Instead of create_bdd_variable and create_stimuli_dict, use the create_antecedent
+#########################################################
+
+#######################################
+# Procedure to create BDD variables signal@tick for each (signal, tick) in signals * ticks
+# - Returns a dictionary of the form {signal@tick: id(signal@tick)}
+# - Supports wide signals
+#######################################
+proc create_bdd_variables {signals ticks} {
+    set bddVars [dict create]
+    foreach signal $signals {
+        foreach tick $ticks {
+            set bdd_variable [check_symsim -expression -var $signal@$tick]
+            dict set bddVars $signal@$tick $bdd_variable
+        }
+    }
+    return $bddVars
+}
+
+#######################################
+# Procedure to create stimuli dict to be used in sequence creation
+# - Assumes the bdd_variables are in the form input_signal@tick
+# - Assigns to each signal sig: (sig@tick, not sig@tick, tick:tick)
+# - Returns a dictionary of the form {input_signal: [(id(sig@tick), id(not sig@tick), tick:tick)]}
+
+# Similar to create_antecedent but for the simulation rather than recipes (recipes don't use dual rail BDDs)
+#######################################
+proc create_stimuli_dict {input_signals bdd_variables} {
+    set stimuli_dict [dict create]
+    foreach bdd_var [dict keys $bdd_variables] {
+        set bdd_var_id [dict get $bdd_variables $bdd_var]
+        set not_bdd_var_id [check_symsim -expression -not $bdd_var_id]
+
+        set signal_name [lindex [split $bdd_var @] 0]
+        set tick [lindex [split $bdd_var @] 1]
+
+        set stimuli [list $bdd_var_id $not_bdd_var_id $tick:$tick]
+        dict lappend stimuli_dict $signal_name $stimuli
+    }
+    return $stimuli_dict
 }
