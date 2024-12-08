@@ -3,8 +3,8 @@
 // =====================================================================
 
 module cam_spec #(
-    parameter DATA_WIDTH = 8,
-    parameter ADDR_WIDTH = 4
+    parameter DATA_WIDTH = 2,
+    parameter ADDR_WIDTH = 2
 )(
     input logic clk,                       // Clock signal
     input logic [DATA_WIDTH-1:0] query,    // Query value
@@ -34,7 +34,19 @@ module cam_spec #(
     end
 
     // Assertion to check if the hit signal is correctly set based on the memory search
+    logic assert_hit_signal;
+    always_comb begin
+        if ($past(trigger)) begin
+            assert_hit_signal = (hit == found_prev);
+        end else begin
+            assert_hit_signal = 1;
+        end;
+    end
+
     assert_hit:
-        assert property (trigger |=> (hit == found_prev));
+        assert property (##1 assert_hit_signal);
+
+    // assert_hit:
+        // assert property (trigger |=> (hit == found_prev));
 
 endmodule

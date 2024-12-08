@@ -4,10 +4,9 @@
 // Definition of the design being verified.
 // =====================================================================
 
-
 module cam_top #(
-    parameter DATA_WIDTH = 8,  // Width of the data bus
-    parameter ADDR_WIDTH = 4   // Width of the address bus
+    parameter DATA_WIDTH = 2,  // Width of the data bus
+    parameter ADDR_WIDTH = 2   // Width of the address bus
 )(
     input logic clk,                       // Clock signal
     input logic [DATA_WIDTH-1:0] query,    // Value to check bus

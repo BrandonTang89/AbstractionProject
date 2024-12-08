@@ -8,7 +8,7 @@ clear -all
 analyze -sv cam.sv
 analyze -sva cam_spec.sva
 analyze -sv bind_cam.sv
-elaborate -top cam_top
+elaborate -top cam_top -loop_limit 100000
 clock -both_edges clk
 reset -none
 
