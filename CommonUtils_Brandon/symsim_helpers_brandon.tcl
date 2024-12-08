@@ -1,8 +1,9 @@
 # === Helper Functions that Complement symsim_utils.tcl ===
+# You should also import helpers.tcl in your script to use these functions
 
 #######################################
 # Shorthand for BDD expression creation
-#######################################
+########################################
 proc XNOR {a b} { check_symsim -expression -xnor $a $b }
 proc IMPLIES {a b} { check_symsim -expression -implies $a $b }
 proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quantify $expression $tvariables }
@@ -90,11 +91,11 @@ proc apply_preimage {preimage_func stimuli_dict index_rel target_variables} {
         set stimuli_list [dict get $stimuli_dict $signal_name]
         set transformed_stimuli_list [list]
         foreach stimuli_tuple $stimuli_list {
-            set bdd_var_id [lindex $stimuli_tuple 0]
-            set not_bdd_var_id [lindex $stimuli_tuple 1]
+            set bdd_expr_id [lindex $stimuli_tuple 0]
+            set not_bdd_expr_id [lindex $stimuli_tuple 1]
             set tick_range [lindex $stimuli_tuple 2]
-            set transformed_var [eval [list $preimage_func $index_rel $bdd_var_id $target_variables]]
-            set transformed_not_var [eval [list $preimage_func $index_rel $not_bdd_var_id $target_variables]]
+            set transformed_var [eval [list $preimage_func $index_rel $bdd_expr_id $target_variables]]
+            set transformed_not_var [eval [list $preimage_func $index_rel $not_bdd_expr_id $target_variables]]
             lappend transformed_stimuli_list [list $transformed_var $transformed_not_var $tick_range]
         }
         dict set transformed_dict $signal_name $transformed_stimuli_list
@@ -141,4 +142,73 @@ proc tick_in_range {tick tick_range} {
     } else {
         return 0
     }
+}
+
+
+#######################################
+# Procedure to check if a symbolic simulation has TOP for given signals
+# This would imply something has gone quite wrong since the simulation is inconsistent
+#######################################
+proc check_has_top {eval_seq signals} {
+    set symbolic_sequence [check_symsim -sequence $eval_seq -get $signals]
+    foreach {stimuli} [dict values $symbolic_sequence] {
+        foreach {stim_range} $stimuli {
+            foreach {high low tick_range} $stim_range {
+                if {[AND $high $low] != [FALSE]} {
+                    # there is some assignment where both high and low are true
+                    return 1
+                }
+            }
+        }
+    }
+    return 0
+}
+
+#######################################
+# Procedure to check that a symbolic simulation satisfies given property signals at given ticks
+
+# - properties: dictionary of the form {signal: tick}
+# - eval_seq: ID of the output sequence from a symbolic simulation (symsim -eval)
+# - prop_high: high expression required of properties (i.e. weak_preimage of TRUE)
+# - prop_low: low expression required of properties (i.e. weak_preimage of FALSE)
+# - verbose: flag to print the results
+
+# Returns a dictionary of the form {(signal, tick): satisfied}
+#######################################
+
+# For a property to be satisfied, both expressions of the property signal in the consequence should imply their respective symbolic simulation exprs
+# i.e. for all assignments A where A ent cons(high), we must have A ent sim(high)
+# and for all assignments A where A ent cons(low), we must have A ent sim(low)
+
+# Note that this relies on the precondition that no signal in the simulation ever has both high and low expr satisfied at the same time
+# i.e. no TOP
+
+proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbose 1}} {
+    # Ensure we don't have any signals with TOP
+    assert [expr {[check_has_top $eval_seq [dict keys $properties]] == 0}] "Simulation has TOP for some signals"
+
+    set symbolic_sequence [check_symsim -sequence $eval_seq -get [dict keys $properties]]
+    set proof_result [dict create]
+    foreach property_signal [dict keys $properties] {
+        set property_tick [dict get $properties $property_signal]
+        set property_in_sim [dict get $symbolic_sequence $property_signal]
+        set sim_expr [get_high_low $property_tick $property_in_sim]
+        set sim_high [lindex $sim_expr 0]
+        set sim_low [lindex $sim_expr 1]
+
+        set property_low_sat [IMPLIES $prop_low $sim_low]
+        set property_high_sat [IMPLIES $prop_high $sim_high]
+
+        set property_sat [expr {($property_low_sat == [TRUE]) && ($property_high_sat == [TRUE])}]
+        
+        if {$verbose} {
+            puts "Property $property_signal at tick $property_tick satisfied: $property_sat"
+            puts "Simulated property high: $sim_high"
+            puts [PR $sim_high]
+            puts "Simulated property low: $sim_low"
+            puts [PR $sim_low]
+        }
+        dict set proof_result [list $property_signal $property_tick] $property_sat
+    }
+    return $proof_result
 }

@@ -1,9 +1,5 @@
 # ===== Symbolic Simulation with Indexing Transformations =====
 # This script applies an indexing transformation to add abstraction to the simulation
-# We still have the following goals:
-# - the correct property being satisfied
-# - the wrong property being violated
-# - a visualisation of the simulation
 
 # We use the following indexing relation:
 # p and q and r -> a@2 and b@2 and c@2 and a@4 and b@4 and c@4
@@ -15,11 +11,9 @@
 # p and (not q) and (not r) -> not c@4p
 # p OR q OR r
 
-
-# This (should) satisfy the coverage condition that 
+# This satisfies the coverage condition that 
     # for each 2^6 possible inputs (across 3 signals on 2 time ticks),
     # we have some value of (p, q, r) that maps to that
-
 
 # The initial set up is the same as for the no-abstraction simulation
 clear -all
@@ -41,10 +35,10 @@ set model_id [check_symsim -model -create]
 set assertions [check_symsim -model $model_id -list assert]
 
 # == Set up property to check ==
-set property_tick 6
-set property_signal spec.and_correct
-# set property_signal spec.and_wrong
-
+set properties [dict create \
+    spec.and_correct 6 \
+    spec.and_wrong 6 \
+]
 
 # === Set up Stimuli ===
 set inputs [list a b c]
@@ -96,18 +90,15 @@ set eval_out [check_symsim  -eval $model_id \
 set eval_seq [dict get $eval_out sequence_id]
 
 # Visualise the simulation
+# Here we can manually inspect to see the value of o (at tick 6) but we need to figure out if this is actually correct
 check_symsim -sequence $eval_seq -get [list a b c o] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
-# Here we can manually inspect to see the value of o (at tick 6)
 
 # === Transformation of the property ===
 # With the modified property, we can perform the weak preimage transformation to get the transformed consequence
-set ste_cons [dict create spec.and_correct [list [list [TRUE] [FALSE] $property_tick:$property_tick]]]
-
-set transformed_cons [strong_preimage_stim $ste_cons $index_rel $bdd_variables]
-set prop_stim [dict get $transformed_cons $property_signal]
-set prop_high [lindex [lindex $prop_stim 0] 0]
-set prop_low [lindex [lindex $prop_stim 0] 1]
+# We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
+set prop_high [strong_preimage $index_rel [TRUE] $bdd_variables] 
+set prop_low [strong_preimage $index_rel [FALSE] $bdd_variables]
 
 PR $prop_high
 PR $prop_low
@@ -117,13 +108,4 @@ PR $prop_low
 # i.e. for all assignments A where A ent cons(high), we must have A ent sim(high)
 # and for all assignments A where A ent cons(low), we must have A ent sim(low)
 
-set property_sim_seq [lindex [check_symsim -sequence $eval_seq -get $property_signal] 1]
-set sim_expr [get_high_low $property_tick $property_sim_seq]
-set sim_high [lindex $sim_expr 0]
-set sim_low [lindex $sim_expr 1]
-
-set property_low_sat [IMPLIES $prop_low $sim_low]
-set property_high_sat [IMPLIES $prop_high $sim_high]
-
-set property_sat [expr {($property_low_sat == [TRUE]) && ($property_high_sat == [TRUE])}]
-puts "Property $property_signal at tick $property_tick satisfied: $property_sat"
+check_properties_against_sim $properties $eval_seq $prop_high $prop_low
