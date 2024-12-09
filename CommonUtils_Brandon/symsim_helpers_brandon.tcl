@@ -38,23 +38,21 @@ proc merge_dual_rail_antecedents {args} {
     return $ant
 }
 
+
 #######################################
-# Procedure to get the bdd expressions in a antv dictionary
-# - Returns a list of all bdd expressions in the antv dictionary
+# Procedure to get the variables an antv depends on
 #######################################
-proc get_dual_rail_antecedent_variables {antv} {
-    set bdd_vars [dict create] 
-    # ensures uniqueness
+proc get_dual_rail_antecedent_variable_names {antv} {
+    set var_names [list]
     foreach {signal_name signal_stimuli} [dict get $antv] {
-        puts $signal_name
         foreach stim_range $signal_stimuli {
             foreach {high_expr low_expr tick_range} $stim_range {
-                dict set bdd_vars $high_expr 1
-                dict set bdd_vars $low_expr 1
+                lappend var_names [check_symsim -expression -depends $high_expr]
+                lappend var_names [check_symsim -expression -depends $low_expr]
             }
         }
     }
-    return [dict keys $bdd_vars]
+    return [make_unique $var_names]
 }
 
 #######################################
@@ -268,4 +266,24 @@ proc create_stimuli_dict {input_signals bdd_variables} {
         dict lappend stimuli_dict $signal_name $stimuli
     }
     return $stimuli_dict
+}
+
+#######################################
+# Procedure to get the bdd expression in an antv dictionary
+# - Returns a list of all the variable expression IDs of the antv dictionary
+#######################################
+proc get_dual_rail_antecedent_expressions {antv} {
+    set bdd_vars [dict create] 
+    # ensures uniqueness
+    foreach {signal_name signal_stimuli} [dict get $antv] {
+        puts $signal_name
+        foreach stim_range $signal_stimuli {
+            foreach {high_expr low_expr tick_range} $stim_range {
+                dict set bdd_vars $high_expr 1
+                dict set bdd_vars $low_expr 1
+                # assert [expr {$high_expr == [NOT $low_expr]}] "High and low expressions not their negations"
+            }
+        }
+    }
+    return [dict keys $bdd_vars]
 }

@@ -44,6 +44,27 @@ for {set i 0} {$i < $numEntries} {incr i} {
 set antv [merge_dual_rail_antecedents $ant_query $ant_trigger $ant_mem]
 
 # === Create indexing relation === 
+# Our indexing relation should cover the following cases
+# - query is in the CAM at entry 1, 2, ..., num_entries
+# - query is not the the CAM, i.e. each entry is different from the query
+
+# we have 1 variable for whether the query is in the cam or not, h
+# we have ADDR_WIDTH variables for selecting the entry of the CAM which is equal to the query
+
+# NOT h -> [
+#   AND_(i<-0 to num_entries) (
+#       NOT (
+#           AND j<-0 to DATA_WIDTH (query@2[j] == mem@2[j]))
+#       )
+#   )
+#]
+# h -> [
+#  OR_(i<-0 to num_entries) (
+#      AND j<-0 to DATA_WIDTH (query@2[j] == mem@2[j])) 
+#  )
+#]
+
+
 # set p [VAR p]
 # set q [VAR q]
 # set r [VAR r]

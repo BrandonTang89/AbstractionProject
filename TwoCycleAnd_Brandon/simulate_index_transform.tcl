@@ -44,12 +44,13 @@ set max_property_tick [max_dict_values $properties]
 
 # === Set up Stimuli ===
 # Create initial un-abstracted stimuli
-set bdd_variables [get_dual_rail_antecedent_variables $antv]
+set input_ticks [list 2 4]
 set antv [merge_dual_rail_antecedent \
     [create_dual_rail_antecedent a $input_ticks] \
     [create_dual_rail_antecedent b $input_ticks] \
     [create_dual_rail_antecedent c $input_ticks] \  
 ]
+set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
 # === Create indexing relation === 
 set p [VAR p]
@@ -66,6 +67,11 @@ set index_rel [AND \
     [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
     [OR $p $q $r]\
 ]
+
+# set index_rel [AND \
+#     [IMPLIES $p [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
+#     [IMPLIES [NOT $p] [OR [NOT [VAR a@2]] [NOT [VAR b@2]] [NOT [VAR c@2]] [NOT [VAR a@4]] [NOT [VAR b@4]] [NOT [VAR c@4]]]] \
+# ]
 
 set index_rel [check_symsim -expression -canonize $index_rel]
 
@@ -100,8 +106,8 @@ check_symsim -sequence $eval_seq -get $assertions -verbose
 # === Transformation of the property ===
 # With the modified property, we can perform the weak preimage transformation to get the transformed consequence
 # We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
-set prop_high [strong_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [strong_preimage $index_rel [FALSE] $bdd_variables]
+set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
+set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
 
 PR $prop_high
 PR $prop_low

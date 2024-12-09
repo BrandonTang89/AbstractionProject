@@ -7,6 +7,16 @@ proc create_list {a b} {
     return $result
 }
 
+proc make_unique {list} {
+    set result {}
+    foreach item $list {
+        if {$item ni $result} {
+            lappend result $item
+        }
+    }
+    return $result
+}
+
 # === Procedure to zip two lists into a dictionary ===
 proc zip_as_dict {keys values} {
     set result [dict create]
