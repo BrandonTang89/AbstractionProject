@@ -39,7 +39,26 @@ proc merge_dual_rail_antecedents {args} {
 }
 
 #######################################
-# Procedure to apply a substitution to a stimuli dictionary
+# Procedure to get the bdd expressions in a antv dictionary
+# - Returns a list of all bdd expressions in the antv dictionary
+#######################################
+proc get_dual_rail_antecedent_variables {antv} {
+    set bdd_vars [dict create] 
+    # ensures uniqueness
+    foreach {signal_name signal_stimuli} [dict get $antv] {
+        puts $signal_name
+        foreach stim_range $signal_stimuli {
+            foreach {high_expr low_expr tick_range} $stim_range {
+                dict set bdd_vars $high_expr 1
+                dict set bdd_vars $low_expr 1
+            }
+        }
+    }
+    return [dict keys $bdd_vars]
+}
+
+#######################################
+# Procedure to apply a substitution to a stimuli (antv) dictionary
 # - For each signal * tick_ranges, apply the substitution to the high and low expressions
 # - Returns a new stimuli dictionary with the substitutions applied
 #######################################
@@ -208,7 +227,7 @@ proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbo
 
 
 #########################################################
-# DEPRECATED
+# DEPRECATED (Don't use with new code)
 # Instead of create_bdd_variable and create_stimuli_dict, use the create_antecedent
 #########################################################
 

@@ -40,13 +40,16 @@ set properties [dict create \
     spec.and_wrong 6 \
 ]
 
-# === Set up Stimuli ===
-set inputs [list a b c]
-set input_ticks [list 2 4]
-set bdd_variables [create_bdd_variables $inputs $input_ticks]
+set max_property_tick [max_dict_values $properties]
 
+# === Set up Stimuli ===
 # Create initial un-abstracted stimuli
-set stimuli_dict [create_stimuli_dict $inputs $bdd_variables]
+set bdd_variables [get_dual_rail_antecedent_variables $antv]
+set antv [merge_dual_rail_antecedent \
+    [create_dual_rail_antecedent a $input_ticks] \
+    [create_dual_rail_antecedent b $input_ticks] \
+    [create_dual_rail_antecedent c $input_ticks] \  
+]
 
 # === Create indexing relation === 
 set p [VAR p]
@@ -72,14 +75,14 @@ PR $index_rel
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-set transformed_ant_stimuli [strong_preimage_stim $stimuli_dict $index_rel $bdd_variables]
+set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
 # Create a sequence from tranformed stimuli
 set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
 # Run the symbolic simulation
-set num_ticks [expr $property_tick + 2]
+set num_ticks [expr $max_property_tick + 2]
 set eval_out [check_symsim  -eval $model_id \
                             -resolved_sequence $resolved_seq_id \
                             -start_tick 1 \

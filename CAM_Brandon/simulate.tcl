@@ -27,6 +27,8 @@ set properties [dict create \
     spec.assert_hit_signal 4 \
 ]
 
+set max_property_tick [max_dict_values $properties]
+
 # === Set up Antecedent ===
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
@@ -74,7 +76,7 @@ set antecedent_seq [check_symsim -sequence -create $antv -name my_sequence]
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
 # Run the symbolic simulation
-set num_ticks [expr $property_tick + 2]
+set num_ticks [expr $max_property_tick + 2]
 set eval_out [check_symsim  -eval $model_id \
                             -resolved_sequence $resolved_seq_id \
                             -start_tick 1 \
