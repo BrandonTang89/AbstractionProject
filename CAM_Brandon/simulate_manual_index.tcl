@@ -1,6 +1,6 @@
 # WORK IN PROGRESS
-set DATA_WIDTH 2;
-set ADDR_WIDTH 2;
+set DATA_WIDTH 2; # d
+set ADDR_WIDTH 2; # log n
 set numEntries [expr 2**$ADDR_WIDTH]
 
 clear -all
@@ -15,7 +15,7 @@ source ../CommonUtils_Brandon/symsim_utils.tcl
 source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
-set_symsim_expr_pretty_print_threshold 30
+set_symsim_expr_pretty_print_threshold 300
 
 # === Symsim Set Up ===
 set model_id [check_symsim -model -create]
@@ -43,57 +43,149 @@ for {set i 0} {$i < $numEntries} {incr i} {
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_trigger $ant_mem]
 
+# puts [get_dual_rail_antecedent_variable_names $antv]
+
+set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
+
+
 # === Create indexing relation === 
+# TODO: Deal with trigger signal as well
 # Our indexing relation should cover the following cases
-# - query is in the CAM at entry 1, 2, ..., num_entries
+# - query is in the CAM at entry 1, 2, ..., n
 # - query is not the the CAM, i.e. each entry is different from the query
 
 # we have 1 variable for whether the query is in the cam or not, h
-# we have ADDR_WIDTH variables for selecting the entry of the CAM which is equal to the query
-
 # NOT h -> [
 #   AND_(i<-0 to num_entries) (
-#       NOT (
-#           AND j<-0 to DATA_WIDTH (query@2[j] == mem@2[j]))
-#       )
+#       OR j<-0 to DATA_WIDTH (query@2[j] != mem[i]@2[j]))
 #   )
 #]
+
 # h -> [
 #  OR_(i<-0 to num_entries) (
-#      AND j<-0 to DATA_WIDTH (query@2[j] == mem@2[j])) 
+#      AND j<-0 to DATA_WIDTH (query@2[j] == mem[i]@2[j])) 
 #  )
 #]
 
+# the case where the entry is in the CAM requires (log n) boolean variables to select the entry that matches the query
+# these will be denoted as ch[i] for i in 0 until log n
+# the case where the entry is not in the CAM requires (n log d) boolean variables such that for each entry, we select the mismatched bit
+# denote as em[entry][j] for j in 0 until log d
 
-# set p [VAR p]
-# set q [VAR q]
-# set r [VAR r]
+# Returns the binary representation of a number, where num = sum (output[i] * 2**i) for i in 0 to numBits-1
+proc get_binary_rep {numBits num} {
+    set binaryRep [list]
+    for {set i 0} {$i < $numBits} {incr i} {
+        lappend binaryRep [expr ($num >> $i) & 1]
+    }
+    return $binaryRep
+}
 
-# set index_rel [AND \
-#     [IMPLIES [AND $p $q $r] [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
-#     [IMPLIES [AND $p $q [NOT $r]] [NOT [VAR a@2]]] \
-#     [IMPLIES [AND $p [NOT $q] $r] [NOT [VAR b@2]]] \
-#     [IMPLIES [AND [NOT $p] $q $r] [NOT [VAR c@2]]] \
-#     [IMPLIES [AND [NOT $p] [NOT $q] $r] [NOT [VAR a@4]]] \
-#     [IMPLIES [AND [NOT $p] $q [NOT $r]] [NOT [VAR b@4]]] \
-#     [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
-#     [OR $p $q $r]\
-# ]
+## CAM HIT
+# When {ch_i} = entry, we should have query == mem[entry]
+proc make_entry_hit {entry} {
+    global DATA_WIDTH
+    global ADDR_WIDTH
+    # when the ch_i bits that correspond to the entry are set, the entry is hit
+    # outcome: query[i] == mem[entry][i] for all i in 0 to DATA_WIDTH
+    set premise [TRUE]
+    set entry_binary [get_binary_rep $ADDR_WIDTH $entry]
+    for {set i 0} {$i < $ADDR_WIDTH} {incr i} {
+        if {[lindex $entry_binary $i] == 0} {
+            set premise [AND $premise [NOT [VAR ch\[$i\]]]]
+        } else {
+            set premise [AND $premise [VAR ch\[$i\]]]
+        }
+    }
 
-# set index_rel [check_symsim -expression -canonize $index_rel]
+    set outcome [TRUE]
+    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+        set outcome [AND $outcome [XNOR [VAR query\[$i\]] [VAR mem\[$entry\]\[$i\]]]]
+    }
 
-# # Check that the indexing relation is as expected
-# check_symsim -expression -depends $index_rel
-# PR $index_rel
+    return [IMPLIES $premise $outcome]
+}
+
+proc all_em_false {} {
+    global numEntries
+    global DATA_WIDTH
+    set conjunct [TRUE]
+    for {set i 0} {$i < $numEntries} {incr i} {
+        for {set j 0} {$j < $DATA_WIDTH} {incr j} {
+            set conjunct [AND $conjunct [NOT [VAR em\[$i\]\[$j\]]]]
+        }
+    }
+    return $conjunct
+}
+
+proc make_cam_hit {} {
+    global numEntries
+    set conjunct [TRUE]
+    for {set i 0} {$i < $numEntries} {incr i} {
+        set conjunct [AND $conjunct [make_entry_hit $i]]
+    }
+    return [AND [all_em_false] $conjunct]
+}
+
+
+## CAM MISS
+proc make_index_at_entry_miss {entry index} {
+    global DATA_WIDTH
+    global ADDR_WIDTH
+    # (em_entry = index) -> query[index] != mem[entry][index]
+    set index_binary [get_binary_rep $DATA_WIDTH $index]
+    set premise [TRUE]
+    for {set i 0} {$i < $ADDR_WIDTH} {incr i} {
+        if {[lindex $index_binary $i] == 0} {
+            set premise [AND $premise [NOT [VAR em\[$entry\]\[$i\]]]]
+        } else {
+            set premise [AND $premise [VAR em\[$entry\]\[$i\]]]
+        }
+    }
+    set outcome [XOR [VAR query\[$index\]] [VAR mem\[$entry\]\[$index\]]]
+    return [IMPLIES $premise $outcome]
+}
+
+proc make_entry_miss {entry} {
+    global DATA_WIDTH
+    set conjunct [TRUE]
+    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+        set conjunct [AND $conjunct [make_index_at_entry_miss $entry $i]]
+    }
+    return $conjunct
+}
+
+proc all_ch_false {} {
+    global ADDR_WIDTH
+    set conjunct [TRUE]
+    for {set i 0} {$i < $ADDR_WIDTH} {incr i} {
+        set conjunct [AND $conjunct [NOT [VAR ch\[$i\]]]]
+    }
+    return $conjunct
+}
+
+proc make_cam_miss {} {
+    global numEntries
+    set conjunct [TRUE]
+    for {set i 0} {$i < $numEntries} {incr i} {
+        set conjunct [AND $conjunct [make_entry_miss $i]]
+    }
+    return [AND [all_ch_false] $conjunct]
+}
+
+set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]]]
+
+
+check_symsim -expression -depends $index_rel
+PR $index_rel
+
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-# set transformed_ant_stimuli [strong_preimage_stim $stimuli_dict $index_rel $bdd_variables]
+set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
 # Create a sequence from tranformed stimuli
-# set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
-
-set antecedent_seq [check_symsim -sequence -create $antv -name my_sequence]
+set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
 # Run the symbolic simulation

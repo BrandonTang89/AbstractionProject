@@ -4,6 +4,7 @@
 ########################################
 # Shorthand for BDD expression creation
 ########################################
+proc XOR {a b} { check_symsim -expression -xor $a $b }
 proc XNOR {a b} { check_symsim -expression -xnor $a $b }
 proc IMPLIES {a b} { check_symsim -expression -implies $a $b }
 proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quantify $expression $tvariables }
@@ -12,17 +13,20 @@ proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quan
 #######################################
 # Analogue of create_antecedent for dual rail signals
 #  - Supports wide siggnals
-
-# Differences between this and the regular create_antecedent:
-# - if tick_list is singleton, we still use the @ delimiter
 ######################################
 proc create_dual_rail_antecedent {signal tick_list} {
     set antv [dict create]
     set bit_list [get_signal_info -bit_blast $signal]
+
+    set single_tick [expr {[llength $tick_list] == 1}]
     foreach signal_bit $bit_list {
         set stim_list [list]
         foreach tick $tick_list {
-            set bdd_variable [VAR $signal_bit@$tick]
+            if {$single_tick} {
+                set bdd_variable [VAR $signal_bit]
+            } else {
+                set bdd_variable [VAR $signal_bit@$tick]
+            }
             lappend stim_list [list $bdd_variable [NOT $bdd_variable] $tick:$tick]
         }
         dict set antv $signal_bit $stim_list
@@ -41,14 +45,15 @@ proc merge_dual_rail_antecedents {args} {
 
 #######################################
 # Procedure to get the variables an antv depends on
+# Note that this returns a list of the variable names rather than the IDs. To be used with QUANT_EXISTS
 #######################################
 proc get_dual_rail_antecedent_variable_names {antv} {
     set var_names [list]
     foreach {signal_name signal_stimuli} [dict get $antv] {
         foreach stim_range $signal_stimuli {
             foreach {high_expr low_expr tick_range} $stim_range {
-                lappend var_names [check_symsim -expression -depends $high_expr]
-                lappend var_names [check_symsim -expression -depends $low_expr]
+                set var_names [concat $var_names [check_symsim -expression -depends $high_expr]]
+                set var_names [concat $var_names [check_symsim -expression -depends $low_expr]]
             }
         }
     }
@@ -199,6 +204,7 @@ proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbo
 
     set symbolic_sequence [check_symsim -sequence $eval_seq -get [dict keys $properties]]
     set proof_result [dict create]
+
     foreach property_signal [dict keys $properties] {
         set property_tick [dict get $properties $property_signal]
         set property_in_sim [dict get $symbolic_sequence $property_signal]
@@ -266,24 +272,4 @@ proc create_stimuli_dict {input_signals bdd_variables} {
         dict lappend stimuli_dict $signal_name $stimuli
     }
     return $stimuli_dict
-}
-
-#######################################
-# Procedure to get the bdd expression in an antv dictionary
-# - Returns a list of all the variable expression IDs of the antv dictionary
-#######################################
-proc get_dual_rail_antecedent_expressions {antv} {
-    set bdd_vars [dict create] 
-    # ensures uniqueness
-    foreach {signal_name signal_stimuli} [dict get $antv] {
-        puts $signal_name
-        foreach stim_range $signal_stimuli {
-            foreach {high_expr low_expr tick_range} $stim_range {
-                dict set bdd_vars $high_expr 1
-                dict set bdd_vars $low_expr 1
-                # assert [expr {$high_expr == [NOT $low_expr]}] "High and low expressions not their negations"
-            }
-        }
-    }
-    return [dict keys $bdd_vars]
 }

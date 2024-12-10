@@ -68,6 +68,7 @@ set index_rel [AND \
     [OR $p $q $r]\
 ]
 
+# Example of too refined abstraction, doesn't work
 # set index_rel [AND \
 #     [IMPLIES $p [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
 #     [IMPLIES [NOT $p] [OR [NOT [VAR a@2]] [NOT [VAR b@2]] [NOT [VAR c@2]] [NOT [VAR a@4]] [NOT [VAR b@4]] [NOT [VAR c@4]]]] \
