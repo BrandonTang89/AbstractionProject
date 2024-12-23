@@ -111,6 +111,8 @@ proc advanced_bp {C sig high low name} {
             set c [bexpr2bdd $sig]
             # TODO I don't understand what this `h c` notation does... there isn't really an obvious free variable to substitute for... 
             # I _think_ it's just going to be (h AND c) but I need to think about this some more (why not just write that in the paper if it's the case!)
+            
+            # NOTE: it looks like it might be AND, as I suspected
             error "xnor implementation unfinished"
         } else {
             set xs [get_case_exprs $name 2]
