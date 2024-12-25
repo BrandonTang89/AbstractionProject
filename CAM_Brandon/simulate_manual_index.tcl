@@ -32,7 +32,6 @@ set max_property_tick [max_dict_values $properties]
 # === Set up Antecedent ===
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
-set ant_trigger [create_dual_rail_antecedent trigger [list 2]]
 
 set ant_mem [list]
 for {set i 0} {$i < $numEntries} {incr i} {
@@ -41,7 +40,7 @@ for {set i 0} {$i < $numEntries} {incr i} {
     set ant_mem [merge_dual_rail_antecedent $ant_mem $ant]
 }
 
-set antv [merge_dual_rail_antecedents $ant_query $ant_trigger $ant_mem]
+set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 
 # puts [get_dual_rail_antecedent_variable_names $antv]
 
@@ -182,6 +181,11 @@ PR $index_rel
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
+
+set q0 [VAR query\[0\]]
+# strong_preimage $index_rel $q0  $bdd_variables
+
+weak_preimage $index_rel $q0  $bdd_variables
 set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
 # Create a sequence from tranformed stimuli

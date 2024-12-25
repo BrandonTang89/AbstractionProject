@@ -1,7 +1,7 @@
 # CAM Verification
 
 This circuit is a read-only CAM that has the following behavior:
-> Suppose that `trigger` is high at time `t` then at time `t+1`, hit is true if and only if at time `t`, we had `query` present in the CAM.
+> At each time, the hit signal is true if the query was found in the CAM at time t-1
 
 Note that with `addr_width = 13` and `data_width = 512`, Jasper takes a long long time to parse the circuit but can prove the property.
 Any more entries and it seems like parsing (but not proving) is the main limiting factor.

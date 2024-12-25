@@ -8,7 +8,7 @@ module cam_spec #(
 )(
     input logic clk,                       // Clock signal
     input logic [DATA_WIDTH-1:0] query,    // Query value
-    input logic trigger,                   // Trigger signal
+    // input logic trigger,                   // Trigger signal
     input logic hit,                       // Hit signal
     input logic [DATA_WIDTH-1:0] mem [(2**ADDR_WIDTH)-1:0] // Memory array
 );
@@ -22,12 +22,10 @@ module cam_spec #(
 
     // Procedural block to check if the memory contains the query string
     always_ff @(posedge clk) begin
-        if (trigger) begin
-            found = 0;
-            for (int i = 0; i < (2**ADDR_WIDTH); i++) begin
-                if (mem[i] == query) begin
-                    found = 1;
-                end
+        found = 0;
+        for (int i = 0; i < (2**ADDR_WIDTH); i++) begin
+            if (mem[i] == query) begin
+                found = 1;
             end
         end
         found_prev <= found;  // Update found_prev on every clock cycle
@@ -36,17 +34,13 @@ module cam_spec #(
     // Assertion to check if the hit signal is correctly set based on the memory search
     logic assert_hit_signal;
     always_comb begin
-        if ($past(trigger)) begin
-            assert_hit_signal = (hit == found_prev);
-        end else begin
-            assert_hit_signal = 1;
-        end;
+        assert_hit_signal = (hit == found_prev);
     end
 
-    assert_hit:
-        assert property (##1 assert_hit_signal);
-
     // assert_hit:
-        // assert property (trigger |=> (hit == found_prev));
+    //     assert property (##1 assert_hit_signal);
+
+    assert_hit:
+        assert property (##1 hit == found_prev);
 
 endmodule

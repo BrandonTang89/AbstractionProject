@@ -10,7 +10,7 @@ module cam_top #(
 )(
     input logic clk,                       // Clock signal
     input logic [DATA_WIDTH-1:0] query,    // Value to check bus
-    input logic trigger,                   // Trigger signal
+    // input logic trigger,                   // Trigger signal
     output logic hit                       // Hit signal (true if data is found, 1 cycle after trigger)
 );
 
@@ -32,11 +32,11 @@ module cam_top #(
 
     // Synchronous logic to set the hit signal
     always_ff @(posedge clk) begin
-        if (trigger) begin
-            hit <= |match;  // Set hit if any match is found
-        end else begin
-            hit <= 0;       // Reset hit signal
-        end
+        // if (trigger) begin
+        hit <= |match;  // Set hit if any match is found
+        // end else begin
+        //     hit <= 0;       // Reset hit signal
+        // end
     end
 
 endmodule
