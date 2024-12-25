@@ -15,7 +15,8 @@ source ../CommonUtils_Brandon/symsim_utils.tcl
 source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
-set_symsim_expr_pretty_print_threshold 300
+set_symsim_expr_pretty_print_threshold 3000
+
 
 # === Symsim Set Up ===
 set model_id [check_symsim -model -create]
@@ -48,7 +49,7 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
 
 # === Create indexing relation === 
-# TODO: Deal with trigger signal as well
+# https://dl.acm.org/doi/pdf/10.1145/266021.266056
 # Our indexing relation should cover the following cases
 # - query is in the CAM at entry 1, 2, ..., n
 # - query is not the the CAM, i.e. each entry is different from the query
@@ -56,7 +57,7 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 # we have 1 variable for whether the query is in the cam or not, h
 # NOT h -> [
 #   AND_(i<-0 to num_entries) (
-#       OR j<-0 to DATA_WIDTH (query@2[j] != mem[i]@2[j]))
+#       OR j<-0 to DATA_WIDTH (tagin[j] != mem[i][j]))
 #   )
 #]
 
@@ -65,6 +66,10 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 #      AND j<-0 to DATA_WIDTH (query@2[j] == mem[i]@2[j])) 
 #  )
 #]
+
+# and tagin[i] = query[i] for i in 0 to DATA_WIDTH
+
+# the indexing variables are thus {h, ch[0..log n], em[0..n][0..log d], tagin[0..d]}
 
 # the case where the entry is in the CAM requires (log n) boolean variables to select the entry that matches the query
 # these will be denoted as ch[i] for i in 0 until log n
@@ -99,7 +104,7 @@ proc make_entry_hit {entry} {
 
     set outcome [TRUE]
     for {set i 0} {$i < $DATA_WIDTH} {incr i} {
-        set outcome [AND $outcome [XNOR [VAR query\[$i\]] [VAR mem\[$entry\]\[$i\]]]]
+        set outcome [AND $outcome [XNOR [VAR tagin\[$i\]] [VAR mem\[$entry\]\[$i\]]]]
     }
 
     return [IMPLIES $premise $outcome]
@@ -141,16 +146,19 @@ proc make_index_at_entry_miss {entry index} {
             set premise [AND $premise [VAR em\[$entry\]\[$i\]]]
         }
     }
-    set outcome [XOR [VAR query\[$index\]] [VAR mem\[$entry\]\[$index\]]]
+    set outcome [XOR [VAR tagin\[$index\]] [VAR mem\[$entry\]\[$index\]]]
     return [IMPLIES $premise $outcome]
 }
 
 proc make_entry_miss {entry} {
     global DATA_WIDTH
     set conjunct [TRUE]
+
+    # Add all the implications for causing the entry to miss
     for {set i 0} {$i < $DATA_WIDTH} {incr i} {
         set conjunct [AND $conjunct [make_index_at_entry_miss $entry $i]]
     }
+
     return $conjunct
 }
 
@@ -172,7 +180,19 @@ proc make_cam_miss {} {
     return [AND [all_ch_false] $conjunct]
 }
 
-set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]]]
+proc make_query_tagin {} {
+    # ensures that tagin == query
+    global DATA_WIDTH
+
+    set conjunct [TRUE]
+    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+        set conjunct [AND $conjunct [XNOR [VAR tagin\[$i\]] [VAR query\[$i\]]]]
+    }
+
+    return $conjunct
+}
+
+set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]] [make_query_tagin]]
 
 
 check_symsim -expression -depends $index_rel
@@ -183,9 +203,13 @@ PR $index_rel
 # Apply the indexing transformation to the stimuli
 
 set q0 [VAR query\[0\]]
-# strong_preimage $index_rel $q0  $bdd_variables
+strong_preimage $index_rel $q0 $bdd_variables
 
-weak_preimage $index_rel $q0  $bdd_variables
+set mem00 [VAR mem\[0\]\[0\]]
+strong_preimage $index_rel $mem00 $bdd_variables
+
+weak_preimage $index_rel $q0 $bdd_variables
+
 set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
 # Create a sequence from tranformed stimuli
@@ -209,10 +233,12 @@ check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-# set prop_high [strong_preimage $index_rel [TRUE] $bdd_variables] 
-# set prop_low [strong_preimage $index_rel [FALSE] $bdd_variables]
+set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
+set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
 
-# PR $prop_high
-# PR $prop_low
 
-# check_properties_against_sim $properties $eval_seq $prop_high $prop_low
+check_symsim -expression -depends $prop_high
+PR $prop_high
+PR $prop_low
+
+check_properties_against_sim $properties $eval_seq $prop_high $prop_low
