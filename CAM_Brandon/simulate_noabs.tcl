@@ -35,7 +35,6 @@ set max_property_tick [max_dict_values $properties]
 # === Set up Antecedent ===
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
-set ant_trigger [create_dual_rail_antecedent trigger [list 2]]
 
 set ant_mem [list]
 for {set i 0} {$i < $numEntries} {incr i} {
@@ -44,7 +43,7 @@ for {set i 0} {$i < $numEntries} {incr i} {
     set ant_mem [merge_dual_rail_antecedent $ant_mem $ant]
 }
 
-set antv [merge_dual_rail_antecedents $ant_query $ant_trigger $ant_mem]
+set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 
 # Create resolved sequence
 set antecedent_seq [check_symsim -sequence -create $antv -name my_sequence]

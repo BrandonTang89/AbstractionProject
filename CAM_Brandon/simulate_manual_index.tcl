@@ -1,6 +1,7 @@
 # WORK IN PROGRESS
-set DATA_WIDTH 2; # d
+set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
+set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set numEntries [expr 2**$ADDR_WIDTH]
 
 clear -all
@@ -57,17 +58,17 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 # we have 1 variable for whether the query is in the cam or not, h
 # NOT h -> [
 #   AND_(i<-0 to num_entries) (
-#       OR j<-0 to DATA_WIDTH (tagin[j] != mem[i][j]))
+#       OR j<-0 to DATA_LENGTH (tagin[j] != mem[i][j]))
 #   )
 #]
 
 # h -> [
 #  OR_(i<-0 to num_entries) (
-#      AND j<-0 to DATA_WIDTH (query@2[j] == mem[i]@2[j])) 
+#      AND j<-0 to DATA_LENGTH (query@2[j] == mem[i]@2[j])) 
 #  )
 #]
 
-# and tagin[i] = query[i] for i in 0 to DATA_WIDTH
+# and tagin[i] = query[i] for i in 0 to DATA_LENGTH
 
 # the indexing variables are thus {h, ch[0..log n], em[0..n][0..log d], tagin[0..d]}
 
@@ -88,10 +89,10 @@ proc get_binary_rep {numBits num} {
 ## CAM HIT
 # When {ch_i} = entry, we should have query == mem[entry]
 proc make_entry_hit {entry} {
-    global DATA_WIDTH
+    global DATA_LENGTH
     global ADDR_WIDTH
     # when the ch_i bits that correspond to the entry are set, the entry is hit
-    # outcome: query[i] == mem[entry][i] for all i in 0 to DATA_WIDTH
+    # outcome: query[i] == mem[entry][i] for all i in 0 to DATA_LENGTH
     set premise [TRUE]
     set entry_binary [get_binary_rep $ADDR_WIDTH $entry]
     for {set i 0} {$i < $ADDR_WIDTH} {incr i} {
@@ -103,7 +104,7 @@ proc make_entry_hit {entry} {
     }
 
     set outcome [TRUE]
-    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+    for {set i 0} {$i < $DATA_LENGTH} {incr i} {
         set outcome [AND $outcome [XNOR [VAR tagin\[$i\]] [VAR mem\[$entry\]\[$i\]]]]
     }
 
@@ -134,12 +135,13 @@ proc make_cam_hit {} {
 
 ## CAM MISS
 proc make_index_at_entry_miss {entry index} {
-    global DATA_WIDTH
+    global DATA_LENGTH
     global ADDR_WIDTH
+    global DATA_WIDTH
     # (em_entry = index) -> query[index] != mem[entry][index]
     set index_binary [get_binary_rep $DATA_WIDTH $index]
     set premise [TRUE]
-    for {set i 0} {$i < $ADDR_WIDTH} {incr i} {
+    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
         if {[lindex $index_binary $i] == 0} {
             set premise [AND $premise [NOT [VAR em\[$entry\]\[$i\]]]]
         } else {
@@ -151,11 +153,11 @@ proc make_index_at_entry_miss {entry index} {
 }
 
 proc make_entry_miss {entry} {
-    global DATA_WIDTH
+    global DATA_LENGTH
     set conjunct [TRUE]
 
     # Add all the implications for causing the entry to miss
-    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+    for {set i 0} {$i < $DATA_LENGTH} {incr i} {
         set conjunct [AND $conjunct [make_index_at_entry_miss $entry $i]]
     }
 
@@ -182,10 +184,10 @@ proc make_cam_miss {} {
 
 proc make_query_tagin {} {
     # ensures that tagin == query
-    global DATA_WIDTH
+    global DATA_LENGTH
 
     set conjunct [TRUE]
-    for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+    for {set i 0} {$i < $DATA_LENGTH} {incr i} {
         set conjunct [AND $conjunct [XNOR [VAR tagin\[$i\]] [VAR query\[$i\]]]]
     }
 
@@ -193,6 +195,9 @@ proc make_query_tagin {} {
 }
 
 set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]] [make_query_tagin]]
+# set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]]]
+# set index_rel [IMPLIES [NOT [VAR h]] [make_cam_miss]]
+
 
 
 check_symsim -expression -depends $index_rel
@@ -203,7 +208,9 @@ PR $index_rel
 # Apply the indexing transformation to the stimuli
 
 set q0 [VAR query\[0\]]
+set q1 [VAR query\[1\]]
 strong_preimage $index_rel $q0 $bdd_variables
+strong_preimage $index_rel $q1 $bdd_variables
 
 set mem00 [VAR mem\[0\]\[0\]]
 strong_preimage $index_rel $mem00 $bdd_variables
@@ -242,3 +249,17 @@ PR $prop_high
 PR $prop_low
 
 check_properties_against_sim $properties $eval_seq $prop_high $prop_low
+check_symsim -expression -get_canonical $prop_high
+
+
+## Sanity Checks
+set xx [OR [NOT [VAR h]] [all_em_false]]
+set yy [OR [VAR h] [all_ch_false]]
+set zz [AND $xx $yy] 
+# Observe that zz is equivalent to $prop_high, which is as expected
+
+set ww [AND [NOT [VAR h]] [all_ch_false]]
+# Observe that this is the condition on which the simulated hit is low, as expected
+
+set qq [AND [VAR h] [all_em_false]]
+# Observe that this is the condition on which the simulated hit is high, as expected
