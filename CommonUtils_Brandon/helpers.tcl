@@ -7,6 +7,16 @@ proc create_list {a b} {
     return $result
 }
 
+proc make_unique {list} {
+    set result {}
+    foreach item $list {
+        if {$item ni $result} {
+            lappend result $item
+        }
+    }
+    return $result
+}
+
 # === Procedure to zip two lists into a dictionary ===
 proc zip_as_dict {keys values} {
     set result [dict create]
@@ -16,6 +26,23 @@ proc zip_as_dict {keys values} {
     return $result
 }
 
+# === Procedure to get the key to the maximum value in a dictionary ===
+proc key_to_max_dict {dictionary} {
+    set max_value -1
+    set max_key ""
+    foreach {key value} $dictionary {
+        if {$value > $max_value} {
+            set max_value $value
+            set max_key $key
+        }
+    }
+    return $max_key
+}
+
+# === Procedure to get the maximum value in a dictionary ===
+proc max_dict_values {dict} {
+    return [dict get $dict [key_to_max_dict $dict]]
+}
 
 # === Procedure to assign a value to all keys in a list ===
 # - Returns a dictionary with all keys in the list assigned the value
