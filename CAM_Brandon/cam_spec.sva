@@ -3,14 +3,13 @@
 // =====================================================================
 
 module cam_spec #(
-    parameter DATA_WIDTH = 2,
+    parameter DATA_LENGTH = 2,
     parameter ADDR_WIDTH = 2
 )(
     input logic clk,                       // Clock signal
-    input logic [DATA_WIDTH-1:0] query,    // Query value
-    // input logic trigger,                   // Trigger signal
+    input logic [DATA_LENGTH-1:0] query,    // Query value
     input logic hit,                       // Hit signal
-    input logic [DATA_WIDTH-1:0] mem [(2**ADDR_WIDTH)-1:0] // Memory array
+    input logic [DATA_LENGTH-1:0] mem [(2**ADDR_WIDTH)-1:0] // Memory array
 );
 
     // Clocking block
@@ -37,10 +36,10 @@ module cam_spec #(
         assert_hit_signal = (hit == found_prev);
     end
 
-    // assert_hit:
-    //     assert property (##1 assert_hit_signal);
-
     assert_hit:
-        assert property (##1 hit == found_prev);
+        assert property (##1 assert_hit_signal);
+
+    // assert_hit:
+    //     assert property (##1 hit == found_prev);
 
 endmodule

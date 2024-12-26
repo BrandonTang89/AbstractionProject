@@ -2,9 +2,9 @@
 # Symbolic simulation of the CAM with no abstraction
 ################################################################################
 
-set DATA_WIDTH 2;
+set DATA_LENGTH 2;
 set ADDR_WIDTH 2;
-set numEntries [expr 2**$ADDR_WIDTH]
+set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
 clear -all
 analyze -sv cam.sv
@@ -37,7 +37,7 @@ set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
 set ant_mem [list]
-for {set i 0} {$i < $numEntries} {incr i} {
+for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
     puts $ant
     set ant_mem [merge_dual_rail_antecedent $ant_mem $ant]

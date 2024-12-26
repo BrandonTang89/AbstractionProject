@@ -1,8 +1,56 @@
-# WORK IN PROGRESS
+# =====================================================================
+# Verification of the CAM via a Indexing Transformation with a manually created indexing relation
+# Suppose that the CAM has n entries with d bits each
+# - We let ADDR_WIDTH = log n, DATA_WIDTH = log d
+# 
+# We use a similar indexing relation to that shown in https://dl.acm.org/doi/pdf/10.1145/266021.266056
+# 
+# Our indexing relation should cover the following cases
+# - query is in the CAM at entry 1, 2, ..., n
+# - query is not the the CAM, i.e. each entry is different from the query
+#
+# For reference, the following are our target variables:
+# - query[0..d-1] : the query
+# - mem[0..n-1][0..d-1] : the entries in the CAM
+#
+# We create d indexing variables to represent the query
+#   {tagin[0..d-1]}
+# we have 1 variable for whether the query is in the cam or not,
+#   {h}
+# We have ADDR_WIDTH variables for selecting which entry in the CAM is the query (for the case where the CAM is hit) 
+#   {ch[0..ADDR_WIDTH-1]}
+# We have n * DATA_WIDTH variables for selecting which bit in each entry is different from the query (for the case where the CAM is missed) 
+#   {em[0..n-1][0..DATA_WIDTH-1]}
+# 
+# This takes O(d + n log d + log n) variables, (logarithmically in d) less than the O(n * d) variables that would be required to represent the entire CAM
+#
+# Our indexing relation is thus of the form
+#
+# query[i] == tagin[i] for i in 0 to DATA_LENGTH
+#
+# &&
+#
+# h -> [
+#  AND (i<-0 to n) (
+#     (i == ch) -> [AND j<-0 to DATA_LENGTH (query[j] == mem[i][j]))] 
+#  )
+# ]
+#
+# && 
+#
+# NOT h -> [
+#   AND_(i<-0 to n) (
+#       AND (j<-0 to DATA_LENGTH) (
+#           (em[i] == j) -> (tagin[j] != mem[i][j])
+#       )
+#   )
+# ]
+#
+# =====================================================================
 set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
-set numEntries [expr 2**$ADDR_WIDTH]
+set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
 clear -all
 analyze -sv cam.sv
@@ -36,47 +84,16 @@ set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
 set ant_mem [list]
-for {set i 0} {$i < $numEntries} {incr i} {
+for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
     puts $ant
     set ant_mem [merge_dual_rail_antecedent $ant_mem $ant]
 }
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
-
-# puts [get_dual_rail_antecedent_variable_names $antv]
-
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
-
 # === Create indexing relation === 
-# https://dl.acm.org/doi/pdf/10.1145/266021.266056
-# Our indexing relation should cover the following cases
-# - query is in the CAM at entry 1, 2, ..., n
-# - query is not the the CAM, i.e. each entry is different from the query
-
-# we have 1 variable for whether the query is in the cam or not, h
-# NOT h -> [
-#   AND_(i<-0 to num_entries) (
-#       OR j<-0 to DATA_LENGTH (tagin[j] != mem[i][j]))
-#   )
-#]
-
-# h -> [
-#  OR_(i<-0 to num_entries) (
-#      AND j<-0 to DATA_LENGTH (query@2[j] == mem[i]@2[j])) 
-#  )
-#]
-
-# and tagin[i] = query[i] for i in 0 to DATA_LENGTH
-
-# the indexing variables are thus {h, ch[0..log n], em[0..n][0..log d], tagin[0..d]}
-
-# the case where the entry is in the CAM requires (log n) boolean variables to select the entry that matches the query
-# these will be denoted as ch[i] for i in 0 until log n
-# the case where the entry is not in the CAM requires (n log d) boolean variables such that for each entry, we select the mismatched bit
-# denote as em[entry][j] for j in 0 until log d
-
 # Returns the binary representation of a number, where num = sum (output[i] * 2**i) for i in 0 to numBits-1
 proc get_binary_rep {numBits num} {
     set binaryRep [list]
@@ -87,11 +104,11 @@ proc get_binary_rep {numBits num} {
 }
 
 ## CAM HIT
-# When {ch_i} = entry, we should have query == mem[entry]
 proc make_entry_hit {entry} {
+    # When {ch} = binary_rep(entry), we should have tagin == mem[entry]
     global DATA_LENGTH
     global ADDR_WIDTH
-    # when the ch_i bits that correspond to the entry are set, the entry is hit
+    # premise: when the ch_i bits that correspond to the entry are set, that entry is hit
     # outcome: query[i] == mem[entry][i] for all i in 0 to DATA_LENGTH
     set premise [TRUE]
     set entry_binary [get_binary_rep $ADDR_WIDTH $entry]
@@ -111,25 +128,14 @@ proc make_entry_hit {entry} {
     return [IMPLIES $premise $outcome]
 }
 
-proc all_em_false {} {
-    global numEntries
-    global DATA_WIDTH
-    set conjunct [TRUE]
-    for {set i 0} {$i < $numEntries} {incr i} {
-        for {set j 0} {$j < $DATA_WIDTH} {incr j} {
-            set conjunct [AND $conjunct [NOT [VAR em\[$i\]\[$j\]]]]
-        }
-    }
-    return $conjunct
-}
 
 proc make_cam_hit {} {
-    global numEntries
+    global NUM_ENTRIES
     set conjunct [TRUE]
-    for {set i 0} {$i < $numEntries} {incr i} {
+    for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
         set conjunct [AND $conjunct [make_entry_hit $i]]
     }
-    return [AND [all_em_false] $conjunct]
+    return $conjunct
 }
 
 
@@ -164,22 +170,13 @@ proc make_entry_miss {entry} {
     return $conjunct
 }
 
-proc all_ch_false {} {
-    global ADDR_WIDTH
-    set conjunct [TRUE]
-    for {set i 0} {$i < $ADDR_WIDTH} {incr i} {
-        set conjunct [AND $conjunct [NOT [VAR ch\[$i\]]]]
-    }
-    return $conjunct
-}
-
 proc make_cam_miss {} {
-    global numEntries
+    global NUM_ENTRIES
     set conjunct [TRUE]
-    for {set i 0} {$i < $numEntries} {incr i} {
+    for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
         set conjunct [AND $conjunct [make_entry_miss $i]]
     }
-    return [AND [all_ch_false] $conjunct]
+    return $conjunct
 }
 
 proc make_query_tagin {} {
@@ -190,15 +187,10 @@ proc make_query_tagin {} {
     for {set i 0} {$i < $DATA_LENGTH} {incr i} {
         set conjunct [AND $conjunct [XNOR [VAR tagin\[$i\]] [VAR query\[$i\]]]]
     }
-
     return $conjunct
 }
 
 set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]] [make_query_tagin]]
-# set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]]]
-# set index_rel [IMPLIES [NOT [VAR h]] [make_cam_miss]]
-
-
 
 check_symsim -expression -depends $index_rel
 PR $index_rel
@@ -206,17 +198,6 @@ PR $index_rel
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-
-set q0 [VAR query\[0\]]
-set q1 [VAR query\[1\]]
-strong_preimage $index_rel $q0 $bdd_variables
-strong_preimage $index_rel $q1 $bdd_variables
-
-set mem00 [VAR mem\[0\]\[0\]]
-strong_preimage $index_rel $mem00 $bdd_variables
-
-weak_preimage $index_rel $q0 $bdd_variables
-
 set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
 # Create a sequence from tranformed stimuli
@@ -251,15 +232,6 @@ PR $prop_low
 check_properties_against_sim $properties $eval_seq $prop_high $prop_low
 check_symsim -expression -get_canonical $prop_high
 
-
-## Sanity Checks
-set xx [OR [NOT [VAR h]] [all_em_false]]
-set yy [OR [VAR h] [all_ch_false]]
-set zz [AND $xx $yy] 
-# Observe that zz is equivalent to $prop_high, which is as expected
-
-set ww [AND [NOT [VAR h]] [all_ch_false]]
-# Observe that this is the condition on which the simulated hit is low, as expected
-
-set qq [AND [VAR h] [all_em_false]]
-# Observe that this is the condition on which the simulated hit is high, as expected
+# Sanity Checks
+# Observe that hit is high if and only if h is true, this is expected from our indexing relation
+# We can inspect the transformed antv to see that the query is exactly the same as the tagin
