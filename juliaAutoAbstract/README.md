@@ -17,3 +17,6 @@
 - figure out how to inspect BDDs using tcl
     - check_symsim -expression -top_cofactor \<expr\> gives us what we need
 - run individual symbolic simulations for each component in the circuit, to build up a BDD of each component's behavior
+    - ooh, we can use -get_sig_excitation to get the behavior of each line, in dual rail format... since we're not using any abstraction yet, just using one rail is enough
+        - BUG: -top_cofactor doesn't seem to work on the returned expressions... No expression with id "0" exists!
+    - so instead we'll have to do the actual simulation...
