@@ -113,12 +113,12 @@ proc bdd_mux_abstract {bdd high low} {
     } elseif {$mux_type == "mux_full"} {
         set x [fresh_var]
         set var_ab [bdd_abstract $var $x [NOT $x]]
-        set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low]
-        set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low]
+        set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low]]
+        set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low]]
 
         # need to figure out what the actual returned abstraction should be in this case
-        return [AND [IMPL $var_ab $sigHigh_ab] [IMPL [NOT $var_ab] $sigHigh_ab]]
-        # return [AND [AND $var_ab $sigHigh_ab] $sigLow_ab]
+        # return [AND [IMPL $var_ab $sigHigh_ab] [IMPL [NOT $var_ab] $sigHigh_ab]]
+        return [AND [AND $var_ab $sigHigh_ab] $sigLow_ab]
     } elseif {$mux_type == "mux_one"} {
         # if one of the inputs is constant, then the mux reduces down to a single AND gate with some inversions
 
@@ -156,7 +156,7 @@ proc bdd_mux_abstract {bdd high low} {
         set high_sw $high_temp
         set low_sw [AND $low_temp $x]
         set high_in $high_temp
-        set low_in [AND $low_temp $x]
+        set low_in [AND $low_temp [NOT $x]]
 
         if {$invert_sw} {
             set temp $high_sw
@@ -187,6 +187,12 @@ proc bdd_mux_abstract {bdd high low} {
 # for now just convert the signal to a bdd and use the above mux_abstract
 # but this shall have more in it when / if we want to implement non-combinatorial components
 proc bdd_abstract {sig high low} {
+    puts "abstracting $sig $high $low"
+    if {[is_VAR $sig]} {
+        set t [VAR v_$sig]
+        return [AND [IMPL $high $t] [IMPL $low [NOT $t]]]
+    }
+
     set bdd [simulate_unit $sig]
     return [bdd_mux_abstract $bdd $high $low]
 }
