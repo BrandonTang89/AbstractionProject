@@ -3,6 +3,10 @@
 variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir auto_abstract_simple.tcl]
 
+proc TC {sig} {
+    return [check_symsim -expression -top_cofactor $sig]
+}
+
 proc freevars_signal {sig} {
     if {[get_signal_info $sig] == "input"} {
         # special case: if we have an input variable, it's fanin will be empty, but it drives itself.
