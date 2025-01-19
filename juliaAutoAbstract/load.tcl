@@ -8,7 +8,8 @@ reset -none
 
 source ../CommonUtils_Brandon/symsim_utils.tcl
 namespace import symsim::*
-
+# create a symbolic model so that interactive invocations of simulate don't fail
+check_symsim -model -create 
 
 source auto_abstract.tcl
 
@@ -16,5 +17,3 @@ source auto_abstract.tcl
 
 puts [PR_bp [advanced_bp [list] y6 [VAR x_0] [NOT [VAR x_0]] base]]
 
-# create a symbolic model so that interactive invocations of simulate don't fail
-check_symsim -model -create 

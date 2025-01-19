@@ -49,6 +49,12 @@ proc simulate_unit {sig} {
     return [check_symsim -expression -substitute $high_rail $subs]
 
 }
+ 
+# Take the union of two lists, removing duplicates
+# https://stackoverflow.com/a/42959687
+proc list_union {list1 list2} {
+    return [lsort -unique [list {*}$list1 {*}$list2]]
+}
 
 # is a BDD node a terminal one (i.e. either just true or false)
 proc bdd_is_terminal {bdd} {
@@ -119,7 +125,7 @@ proc bdd_mux_abstract {bdd high low} {
         set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low]]
 
         # return [AND [IMPL $var_ab $sigHigh_ab] [IMPL [NOT $var_ab] $sigHigh_ab]]
-        return [AND [AND $var_ab $sigHigh_ab] $sigLow_ab]
+        return [list_union [list_union $var_ab $sigHigh_ab] $sigLow_ab]
     } elseif {$mux_type == "mux_one"} {
         # if one of the inputs is constant, then the mux reduces down to a single AND gate with some inversions
 
@@ -178,7 +184,7 @@ proc bdd_mux_abstract {bdd high low} {
             set r2 [bdd_mux_abstract $sigHigh $high_in $low_in]
         }
 
-        return [AND $r1 $r2]
+        return [list_union $r1 $r2]
     }
 
     error $mux_type
@@ -191,9 +197,21 @@ proc bdd_abstract {sig high low} {
     puts "abstracting $sig $high $low"
     if {[is_VAR $sig]} {
         set t [VAR v_$sig]
-        return [AND [IMPL $high $t] [IMPL $low [NOT $t]]]
+        #return [AND [IMPL $high $t] [IMPL $low [NOT $t]]]
+        return [list [list $t $high $low]]
     }
 
     set bdd [simulate_unit $sig]
     return [bdd_mux_abstract $bdd $high $low]
+}
+
+
+# Pretty-print an abstraction list
+proc PRR {abs} {
+    puts "============"
+    foreach ab $abs {
+        set x_str [lmap x $ab {PR $x}]
+        puts "([lindex $x_str 0] -> [lindex $x_str 1] // [lindex $x_str 2])"
+    }
+    puts "============"
 }
