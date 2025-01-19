@@ -26,3 +26,7 @@
         - but this appears to be resolved if the expr is actually used anywhere...
         - there are a number of :symsim_syn_* intermediate wires but if we recursively follow the tree we can probably just traverse them as if they were normal ones...
             - unclear where exactly they come from!
+
+
+- Next todo: port the improvements to the algorithm over to MUX gate land
+    - particularly big and gate detection... might need to mess around with bdd ordering to find the best one though :(

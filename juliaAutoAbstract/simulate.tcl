@@ -6,12 +6,14 @@ source [file join $baseDir auto_abstract.tcl]
 
 
 proc simulate_unit {sig} {
-    if {[get_signal_info -logic $sig] != "wire"} {
+    if {[dict get [check_symsim -model -get_sig_info $sig] type] != "wire"} {
         error "can't simulate $sig : has state!"
         return
     }
 
-    if {[get_signal_info $sig] == "input"} {
+    set inclusion [expr {$sig in [check_symsim -model [check_symsim -model -get] -list input]}]
+    set fanin_size [llength [check_symsim -model -get_sig_fanin $sig]]
+    if {$inclusion || $fanin_size == 0} {
         error "can't simulate $sig : is input!"
     }
 
@@ -63,7 +65,7 @@ proc bdd_is_terminal {bdd} {
 #  'mux_one'        !- one of the switched inputs is a constant
 #  'mux_invert'    !!- both switching inputs are constant, and represents an inversion of the switching input
 #  'mux_wire'      !!- both switching inputs are constant, and does not invert the switching input
-#  'mux_const'     !!- both switching inputs are constant and represent the same wire (shoudn't occur in a ROBDD; included for completeness)
+#  'mux_const'     !!- both switching inputs are constant and represent the same value (shoudn't occur in a ROBDD; included for completeness)
 #  'mux_full'       \- no constants; the switching input and both switched ones are wires
 # used to determine which case of the MUX abstraction to use
 proc bdd_mux_type {bdd} {
@@ -116,7 +118,6 @@ proc bdd_mux_abstract {bdd high low} {
         set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low]]
         set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low]]
 
-        # need to figure out what the actual returned abstraction should be in this case
         # return [AND [IMPL $var_ab $sigHigh_ab] [IMPL [NOT $var_ab] $sigHigh_ab]]
         return [AND [AND $var_ab $sigHigh_ab] $sigLow_ab]
     } elseif {$mux_type == "mux_one"} {
