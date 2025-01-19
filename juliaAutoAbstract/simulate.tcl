@@ -100,8 +100,105 @@ proc bdd_mux_type {bdd} {
     }    
 }
 
+proc bdd_mux_one_type {bdd} {
+    set inputs [TC $bdd]
+
+    set var [lindex $inputs 0]
+    set sigHigh [lindex $inputs 1]
+    set sigLow [lindex $inputs 2]
+
+    # Controls if not gates should be inserted on the output of the MUX gate, switching input, and non-constant switched input respectively
+    set invert_out false
+    set invert_sw false
+    set invert_in false
+
+    if {[bdd_is_terminal $sigHigh]} {
+            if {$sigHigh == [TRUE]} {
+                set invert_out true
+                set invert_sw true 
+                set invert_in true
+            } else {
+                set invert_sw true
+            }
+        } else {
+            if {$sigLow == [TRUE]} {
+                set invert_out true
+                set invert_in true
+            } else {
+                # no inversion needed
+            }
+    }
+
+    return [list $invert_out $invert_sw $invert_in]
+}
+
+# recursively traverses a tree, looking for sequences of AND gates
+# note that just mux_one isn't sufficient, since intervening inversions spoil the AND structure
+# however double inversions can be eliminated safely
+# returns a list of pairs {node, inverted}, where inverted is true if the node terminates with a NOT gate
+#
+# the efficiency of this function could be increased by memoizing simulate, since we're computing things that could be reused later
+# but the gain is tiny and in a large circuit could drastically increase memory consumption since bdd nodes could never be freed
+#
+# the size of the output depends on the BDD ordering -- perhaps it's possible to find orderings that give maximal size somehow?
+proc find_big_ands {bdd needsinvert} {
+
+    set inputs [TC $bdd]
+    set var [lindex $inputs 0]
+
+    set mux_type [bdd_mux_type $bdd]
+
+    if {$mux_type != "mux_one"} {
+        if {$mux_type == "mux_wire" || $mux_type == "mux_invert"} {
+            if {$mux_type == "mux_invert"} {
+                set needsinvert [expr {!$needsinvert}]
+            }
+
+            if {[is_VAR $var]} {
+                # if the node is an input, terminate the process
+                return [list [list $var $needsinvert]]
+            } else {
+                return [find_big_ands [simulate_unit $var] $needsinvert]
+            }
+        } else {
+            puts "returned early $bdd [bdd_mux_type $bdd]"
+            return [list [list $bdd $needsinvert]]
+        }
+    }
+
+    set sigIn [lindex $inputs 1]
+    if {[bdd_is_terminal $sigIn]} {
+        set sigIn [lindex $inputs 2]
+    }
+
+    set invert_list [bdd_mux_one_type $bdd]
+
+    set invert_out [lindex $invert_list 0]
+    set invert_sw [lindex $invert_list 1]
+    set invert_in [lindex $invert_list 2]
+
+    if {$invert_out != $needsinvert} {
+        # inversion violation, the and gate ends here
+        puts "inversion violation $bdd"
+        return [list [list $bdd $needsinvert]]
+    }
+
+    # okay, this is an and gate that is consistent with it's ancestors, so we can recurse down it's inputs
+    if {[is_VAR $var]} { 
+        # stop recursing, since this is a variable
+        set sw_and_list [list [list $var $needsinvert]]
+    } else {
+        set sw_and_list [find_big_ands [simulate_unit $var] $invert_sw]
+    }
+    set in_and_list [find_big_ands $sigIn $invert_in]
+
+    puts "normal $sw_and_list $in_and_list"
+    return [list_union $sw_and_list $in_and_list]
+}
+
+
 # performs the abstraction step on a BDD tree
-# returns what the relation should be according to the node's type
+# returns an _abstraction list_ of triples (node, high, low)
 proc bdd_mux_abstract {bdd high low} {
     set inputs [TC $bdd]
 
@@ -129,27 +226,12 @@ proc bdd_mux_abstract {bdd high low} {
     } elseif {$mux_type == "mux_one"} {
         # if one of the inputs is constant, then the mux reduces down to a single AND gate with some inversions
 
-        # Controls if not gates should be inserted on the output of the MUX gate, switching input, and non-constant switched input respectively
-        set invert_out false
-        set invert_sw false
-        set invert_in false
+        set invert_list [bdd_mux_one_type $bdd]
 
-        if {[bdd_is_terminal $sigHigh]} {
-            if {$sigHigh == [TRUE]} {
-                set invert_out true
-                set invert_sw true 
-                set invert_in true
-            } else {
-                set invert_sw true
-            }
-        } else {
-            if {$sigLow == [TRUE]} {
-                set invert_out true
-                set invert_in true
-            } else {
-                # no inversion needed
-            }
-        }
+        # Controls if not gates should be inserted on the output of the MUX gate, switching input, and non-constant switched input respectively
+        set invert_out [lindex $invert_list 0]
+        set invert_sw [lindex $invert_list 1]
+        set invert_in [lindex $invert_list 2]
 
         set high_temp $high
         set low_temp $low
@@ -193,11 +275,11 @@ proc bdd_mux_abstract {bdd high low} {
 # performs the abstraction step on a signal
 # for now just convert the signal to a bdd and use the above mux_abstract
 # but this shall have more in it when / if we want to implement non-combinatorial components
+# returns an _abstraction list_ of triples (node, high, low)
 proc bdd_abstract {sig high low} {
     puts "abstracting $sig $high $low"
     if {[is_VAR $sig]} {
         set t [VAR v_$sig]
-        #return [AND [IMPL $high $t] [IMPL $low [NOT $t]]]
         return [list [list $t $high $low]]
     }
 
