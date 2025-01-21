@@ -337,3 +337,13 @@ proc PRR {abs} {
     }
     puts "============"
 }
+
+# Get a list of discinct variables in an abstraction list
+proc get_abs_vars {abs} {
+    set vars [list]
+    foreach ab $abs {
+        set vars [list_union $vars [check_symsim -expression -depends [lindex $ab 1]]]
+        set vars [list_union $vars [check_symsim -expression -depends [lindex $ab 2]]]
+    }
+    return $vars
+}
