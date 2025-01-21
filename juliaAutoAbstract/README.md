@@ -28,5 +28,7 @@
             - unclear where exactly they come from!
 
 
-- Next todo: port the improvements to the algorithm over to MUX gate land
-    - particularly big and gate detection... might need to mess around with bdd ordering to find the best one though :(
+- Next todo: sort out get_case_exprs for when n is not a power of two
+    - recurse over the binary expansion of n? weird but sure
+    - also add the names stuff from the original algorithm
+    - figure out how to merge cases

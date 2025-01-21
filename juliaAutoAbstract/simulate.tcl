@@ -3,6 +3,7 @@
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
 variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir auto_abstract.tcl]
+source [file join $baseDir simulate.tcl]
 
 
 proc simulate_unit {sig} {
@@ -196,6 +197,24 @@ proc find_big_ands {bdd needsinvert} {
     return [list_union $sw_and_list $in_and_list]
 }
 
+# creates fresh boolean variables for at least n cases, and returns those cases
+proc get_case_exprs {n} {
+    return [lrange [get_case_exprs_rec $n 2] 0 [expr {$n - 1}]]
+}
+
+proc get_case_exprs_rec {n i} {
+    set x [fresh_var]
+    if {$i >= $n} {
+        return [list $x [NOT $x]]
+    } else {
+        set cases [get_case_exprs_rec $n [expr {$i * 2}]]
+        set cases_pos [lmap case $cases {AND $x $case}]
+        set cases_neg [lmap case $cases {AND [NOT $x] $case}]
+
+        return [list_union $cases_pos $cases_neg]
+    }
+}
+
 
 # performs the abstraction step on a BDD tree
 # returns an _abstraction list_ of triples (node, high, low)
@@ -225,6 +244,7 @@ proc bdd_mux_abstract {bdd high low} {
         return [list_union [list_union $var_ab $sigHigh_ab] $sigLow_ab]
     } elseif {$mux_type == "mux_one"} {
         # if one of the inputs is constant, then the mux reduces down to a single AND gate with some inversions
+   
 
         set invert_list [bdd_mux_one_type $bdd]
 
@@ -232,6 +252,10 @@ proc bdd_mux_abstract {bdd high low} {
         set invert_out [lindex $invert_list 0]
         set invert_sw [lindex $invert_list 1]
         set invert_in [lindex $invert_list 2]
+
+        set and_operands [find_big_ands $bdd $invert_out]
+        puts "ops: $and_operands"
+        set and_cases [get_case_exprs [llength $and_operands]]
 
         set high_temp $high
         set low_temp $low
@@ -241,32 +265,21 @@ proc bdd_mux_abstract {bdd high low} {
             set low_temp $high
         }
 
-        set x [fresh_var]
-        set high_sw $high_temp
-        set low_sw [AND $low_temp $x]
-        set high_in $high_temp
-        set low_in [AND $low_temp [NOT $x]]
+        # TODO add the names optimisation hereS
+        set result [list]
+        foreach op $and_operands case $and_cases {
+            puts "op: $op, case: $case"
+            set next_sig [lindex $op 0]
+            set invert [lindex $op 1]
 
-        if {$invert_sw} {
-            set temp $high_sw
-            set high_sw $low_sw
-            set low_sw $temp
+            if {$invert} {
+                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp $case] $high_temp]]
+            } else {
+                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp $case]]]
+            }
         }
 
-        if {$invert_in} {
-            set temp $high_in
-            set high_in $low_in
-            set low_in $temp
-        }
-
-        set r1 [bdd_abstract $var $high_sw $low_sw]
-        if {[bdd_is_terminal $sigHigh]} {
-            set r2 [bdd_mux_abstract $sigLow $high_in $low_in]
-        } else {
-            set r2 [bdd_mux_abstract $sigHigh $high_in $low_in]
-        }
-
-        return [list_union $r1 $r2]
+        return $result
     }
 
     error $mux_type
@@ -278,10 +291,18 @@ proc bdd_mux_abstract {bdd high low} {
 # returns an _abstraction list_ of triples (node, high, low)
 proc bdd_abstract {sig high low} {
     puts "abstracting $sig $high $low"
+    
+    # quick continue if we somehow get passed a bdd node
+    if {[string is digit $sig]} {
+            return [bdd_mux_abstract $sig $high $low]
+    }
+
+
     if {[is_VAR $sig]} {
         set t [VAR v_$sig]
         return [list [list $t $high $low]]
     }
+
 
     set bdd [simulate_unit $sig]
     return [bdd_mux_abstract $bdd $high $low]

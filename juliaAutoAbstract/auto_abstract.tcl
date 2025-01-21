@@ -56,14 +56,15 @@ proc sort_inp_args {C sig} {
     return $sigs
 }
 
-proc get_case_exprs {name n} {
-    # for now, only deal with n=2
-    if {$n != 2} {
-        error "get_case_exprs for n!=2 is currently unimplemented (your n: $n)"
-    }
-
-    return [list [VAR c_$name] [NOT [VAR c_$name]]]
-}
+# removed, i have a better version
+#proc get_case_exprs {name n} {
+#    # for now, only deal with n=2
+#    if {$n != 2} {
+#        error "get_case_exprs for n!=2 is currently unimplemented (your n: $n)"
+#    }
+#
+#    return [list [VAR c_$name] [NOT [VAR c_$name]]]
+#}
 
 proc make_same_names {name n} {
     set names [list]
