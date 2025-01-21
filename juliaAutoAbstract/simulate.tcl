@@ -3,7 +3,7 @@
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
 variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir auto_abstract.tcl]
-source [file join $baseDir simulate.tcl]
+source [file join $baseDir names.tcl]
 
 
 proc simulate_unit {sig} {
@@ -197,17 +197,27 @@ proc find_big_ands {bdd needsinvert} {
     return [list_union $sw_and_list $in_and_list]
 }
 
-# creates fresh boolean variables for at least n cases, and returns those cases
-proc get_case_exprs {n} {
-    return [lrange [get_case_exprs_rec $n 2] 0 [expr {$n - 1}]]
+# from https://wiki.tcl-lang.org/page/Performance+of+Various+Stack+Implementations by Lars Hellström
+proc lpop listVar {
+        upvar 1 $listVar l
+        set r [lindex $l end]
+        set l [lreplace $l [set l end] end] ; # Make sure [lreplace] operates on unshared object
+        return $r
 }
 
-proc get_case_exprs_rec {n i} {
-    set x [fresh_var]
+# creates fresh boolean variables for at least n cases, and returns those cases
+proc get_case_exprs {n name} {
+    set case_names [make_unique_names $name $n]
+    return [lrange [get_case_exprs_rec $n 2 $case_names] 0 [expr {$n - 1}]]
+}
+
+proc get_case_exprs_rec {n i names} {
+    set x_name [lpop names]
+    set x [VAR $x_name]
     if {$i >= $n} {
         return [list $x [NOT $x]]
     } else {
-        set cases [get_case_exprs_rec $n [expr {$i * 2}]]
+        set cases [get_case_exprs_rec $n [expr {$i * 2}] $names]
         set cases_pos [lmap case $cases {AND $x $case}]
         set cases_neg [lmap case $cases {AND [NOT $x] $case}]
 
@@ -218,7 +228,7 @@ proc get_case_exprs_rec {n i} {
 
 # performs the abstraction step on a BDD tree
 # returns an _abstraction list_ of triples (node, high, low)
-proc bdd_mux_abstract {bdd high low} {
+proc bdd_mux_abstract {bdd high low name} {
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
@@ -229,16 +239,17 @@ proc bdd_mux_abstract {bdd high low} {
 
     if {$mux_type == "mux_wire"} {
         # then pass everything through to the switching signal
-        return [bdd_abstract $var $high $low]
+        return [bdd_abstract $var $high $low $name]
     } elseif {$mux_type == "mux_invert"} {
-        return [bdd_abstract $var $low $high]
+        return [bdd_abstract $var $low $high $name]
     } elseif {$mux_type == "mux_const"} {
         error "mux_const hit! this shouldn't happen if the bdd is reduced and it's unclear what to do here"
     } elseif {$mux_type == "mux_full"} {
-        set x [fresh_var]
-        set var_ab [bdd_abstract $var $x [NOT $x]]
-        set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low]]
-        set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low]]
+        set x_name [lindex [make_unique_names $name 1] 0]
+        set x [VAR $x_name]
+        set var_ab [bdd_abstract $var $x [NOT $x] $x_name]
+        set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low] $x_name]
+        set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low] $x_name]
 
         # return [AND [IMPL $var_ab $sigHigh_ab] [IMPL [NOT $var_ab] $sigHigh_ab]]
         return [list_union [list_union $var_ab $sigHigh_ab] $sigLow_ab]
@@ -255,7 +266,8 @@ proc bdd_mux_abstract {bdd high low} {
 
         set and_operands [find_big_ands $bdd $invert_out]
         puts "ops: $and_operands"
-        set and_cases [get_case_exprs [llength $and_operands]]
+        set and_cases [get_case_exprs [llength $and_operands] $name]
+        set and_names [make_unique_names $name [llength $and_operands]]
 
         set high_temp $high
         set low_temp $low
@@ -265,17 +277,23 @@ proc bdd_mux_abstract {bdd high low} {
             set low_temp $high
         }
 
+        # really good optimisation!
+        if {$high_temp == [FALSE]} {
+            set and_names [make_same_names $name [llength $and_operands]]
+        }
+
+
         # TODO add the names optimisation hereS
         set result [list]
-        foreach op $and_operands case $and_cases {
-            puts "op: $op, case: $case"
+        foreach op $and_operands case $and_cases x_name $and_names {
+            puts "op: $op, case: $case, name: $x_name"
             set next_sig [lindex $op 0]
             set invert [lindex $op 1]
 
             if {$invert} {
-                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp $case] $high_temp]]
+                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp $case] $high_temp $x_name]]
             } else {
-                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp $case]]]
+                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp $case] $x_name]]
             }
         }
 
@@ -289,12 +307,13 @@ proc bdd_mux_abstract {bdd high low} {
 # for now just convert the signal to a bdd and use the above mux_abstract
 # but this shall have more in it when / if we want to implement non-combinatorial components
 # returns an _abstraction list_ of triples (node, high, low)
-proc bdd_abstract {sig high low} {
+proc bdd_abstract {sig high low name} {
     puts "abstracting $sig $high $low"
     
     # quick continue if we somehow get passed a bdd node
+    # FIXME can wire names be purely digits? i doubt it but good to check
     if {[string is digit $sig]} {
-            return [bdd_mux_abstract $sig $high $low]
+            return [bdd_mux_abstract $sig $high $low $name]
     }
 
 
@@ -305,7 +324,7 @@ proc bdd_abstract {sig high low} {
 
 
     set bdd [simulate_unit $sig]
-    return [bdd_mux_abstract $bdd $high $low]
+    return [bdd_mux_abstract $bdd $high $low $name]
 }
 
 

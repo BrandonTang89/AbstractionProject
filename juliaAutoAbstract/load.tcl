@@ -15,5 +15,5 @@ source auto_abstract.tcl
 
 #puts [PR [simple_bp y6 [VAR x_0] [NOT [VAR x_0]]]]
 
-puts [PR_bp [advanced_bp [list] y6 [VAR x_0] [NOT [VAR x_0]] base]]
+#puts [PR_bp [advanced_bp [list] y6 [VAR x_0] [NOT [VAR x_0]] base]]
 

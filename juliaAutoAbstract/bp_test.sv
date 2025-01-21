@@ -25,7 +25,7 @@ assign y6 = y4 & y5;
 
 assign o = y6;
 
-assign p3 = (p1 ^ p2);
+assign p3 = ~(p1 ^ p2);
 
 
 endmodule
