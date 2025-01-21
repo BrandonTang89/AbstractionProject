@@ -247,7 +247,7 @@ proc bdd_mux_abstract {bdd high low name} {
     } elseif {$mux_type == "mux_full"} {
         set x_name [lindex [make_unique_names $name 1] 0]
         set x [VAR $x_name]
-        set var_ab [bdd_abstract $var $x [NOT $x] $x_name]
+        set var_ab [bdd_abstract $var [AND [OR $high $low] $x] [AND [OR $high $low] [NOT $x]] $x_name]
         set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low] $x_name]
         set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low] $x_name]
 
