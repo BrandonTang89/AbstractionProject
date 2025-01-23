@@ -1,7 +1,7 @@
 # === Implementation of the Automatic Abstraction algorithm from Adams, 2007 ===
 
 # We're going to use the logical structure in the symsim module, and symsim_utils gives a much nicer way of expressing that
-source ../TwoCycleAnd_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/symsim_utils.tcl
 
 namespace import symsim::*
 proc IMPL {x y} {check_symsim -expression -implies $x $y}
@@ -46,7 +46,9 @@ proc strip_NOT {sig} {
 
 proc is_VAR {sig} {
 
-    if {[get_signal_info $sig] == {input}} {
+    set inclusion [expr {$sig in [check_symsim -model [check_symsim -model -get] -list input]}]
+    set fanin_size [llength [check_symsim -model -get_sig_fanin $sig]]
+    if {$inclusion || $fanin_size == 0} {
         return 1
     }
     return 0
@@ -55,16 +57,18 @@ proc is_VAR {sig} {
 variable ivar_index
 set ivar_index 0
 
+# Convention: free variables have name `x_*`, variables generated from a signal have name `v_*`
+
 proc fresh_var {} {
     variable ivar_index
     set ivar_index [expr {$ivar_index + 1}]
     puts [concat "generating fresh var" $ivar_index]
-    return [VAR "x$ivar_index"]
+    return [VAR "x_$ivar_index"]
 }
 
 proc simple_bp {root high low} {
     if {[is_VAR $root]} {
-        set t [VAR $root]
+        set t [VAR v_$root]
         return [AND [IMPL $high $t] [IMPL $low [NOT $t]]]
     } elseif {[is_NOT $root]} {
         return [simple_bp [strip_NOT $root] $low $high]

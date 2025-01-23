@@ -3,7 +3,15 @@
 
 module bp_test #() (
     input logic a, b, c, d,
-    output logic o
+    output logic o,
+
+    // for testing xnor
+    input logic p1, p2,
+    output logic p3,
+
+    // for testing MUX
+    input logic s0, s1, x,
+    output logic mux
 );
 
 logic y1, y2, y3, y4, y5, y6;
@@ -16,6 +24,9 @@ assign y5 = c & d;
 assign y6 = y4 & y5;
 
 assign o = y6;
+
+assign p3 = ~(p1 ^ p2);
+
 
 endmodule
 
