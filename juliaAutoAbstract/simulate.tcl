@@ -50,11 +50,47 @@ proc simulate_unit {sig} {
     return [check_symsim -expression -substitute $high_rail $subs]
 
 }
+
+proc transitive_simulate {bdd} {
+    if {![string is digit $bdd]} {
+        set inclusion [expr {$bdd in [check_symsim -model [check_symsim -model -get] -list input]}]
+        set fanin_size [llength [check_symsim -model -get_sig_fanin $bdd]]
+        if {$inclusion || $fanin_size == 0} {
+            return [VAR c_$bdd]
+        }
+
+        set bdd [simulate_unit $bdd]
+    }
+
+    foreach sig [check_symsim -expression -depends $bdd] {
+        set bdd [check_symsim -expression -substitute $bdd [dict create [VAR $sig] [transitive_simulate $sig]]]
+    }
+
+    return $bdd
+}
  
 # Take the union of two lists, removing duplicates
 # https://stackoverflow.com/a/42959687
 proc list_union {list1 list2} {
     return [lsort -unique [list {*}$list1 {*}$list2]]
+}
+
+# Find the 'free variables' present in a given signal
+# in circuit terminology this means the transitive fanin restricted to only inputs
+proc freevars {sig} {
+    # find all the signals listed in the bdd
+    set sigs [list $sig]
+    if {[string is digit $sig]} {
+        set sigs [check_symsim -expression -depends $sig]
+    }
+    set trans_fanin [check_symsim -transitive_fanin -signals $sigs]
+    set results [list]
+    foreach sig $trans_fanin {
+        if {[is_VAR $sig]} {
+            lappend results $sig
+        }
+    }
+    return $results
 }
 
 # is a BDD node a terminal one (i.e. either just true or false)
@@ -228,7 +264,7 @@ proc get_case_exprs_rec {n i names} {
 
 # performs the abstraction step on a BDD tree
 # returns an _abstraction list_ of triples (node, high, low)
-proc bdd_mux_abstract {bdd high low name} {
+proc bdd_mux_abstract {bdd high low name {constants [list]}} {
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
@@ -307,13 +343,19 @@ proc bdd_mux_abstract {bdd high low name} {
 # for now just convert the signal to a bdd and use the above mux_abstract
 # but this shall have more in it when / if we want to implement non-combinatorial components
 # returns an _abstraction list_ of triples (node, high, low)
-proc bdd_abstract {sig high low name} {
+proc bdd_abstract {sig high low name {constants [list]}} {
     puts "abstracting $sig $high $low"
     
     # quick continue if we somehow get passed a bdd node
     # FIXME can wire names be purely digits? i doubt it but good to check
     if {[string is digit $sig]} {
-            return [bdd_mux_abstract $sig $high $low $name]
+            return [bdd_mux_abstract $sig $high $low $name $constants]
+    }
+
+    if {[is_subset [freevars $sig] $constants]} {
+        # TODO transitive simulate
+        set t [VAR c_$sig]
+        return [list [list $t $high $low]]
     }
 
 
@@ -324,7 +366,27 @@ proc bdd_abstract {sig high low name} {
 
 
     set bdd [simulate_unit $sig]
-    return [bdd_mux_abstract $bdd $high $low $name]
+    return [bdd_mux_abstract $bdd $high $low $name $constants]
+}
+
+# main abstraction entry point
+proc autoabstract {sig high low {constants [list]}} {
+    
+    # force any symbolic constants to appear as first in any BDDs
+    # this means we cannot have situations where a MUX gate has a constant on a signalling wire but not a switching one
+    # note this might overwrite any user-defined variable ordering!
+    if {[llength $constants] > 0} {
+        puts "Applying constants variable ordering..."
+
+        # HACK to force the variable order to actually be replaced. Normally, if the given list is already consistent with the variable ordering
+        # the current ordering will be maintained, which is contrary to our goal of ensuring our constants are first
+        check_symsim -var_order -set [list H2 H1]
+        check_symsim -var_order -set $constants
+    }
+
+    return [bdd_abstract $sig $high $low x $constants]
+
+
 }
 
 
