@@ -39,9 +39,17 @@ set antv [merge_dual_rail_antecedents $ant_a $ant_b $ant_c $ant_d]
 
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
+
 # == Automatic Abstraction ==
-# We only need to auto abstract on the property_wire being TRUE (it is a waste to do it on FALSE)
-set partition_abstraction [autoabstract spec.property_wire [TRUE] [FALSE] []]
+######################
+# If you uncomment this line and run it, the evaluation will produce a different result!!
+
+# autoabstract spec.desired_wire [VAR t_0] [NOT [VAR t_0]] []
+
+# Note that the above line does produce the same abstraction as the one below...
+######################
+
+set partition_abstraction [autoabstract o [VAR t_0] [NOT [VAR t_0]] []]
 
 # Rename the abstraction
 set inputs [check_symsim -model $model_id -list input]
@@ -50,9 +58,10 @@ set partition_abstraction [rename_partition_abstraction $partition_abstraction $
 set index_rel [combine_abstractions $partition_abstraction]
 
 # Manual correction!!!
-set index_rel [AND $index_rel [OR [VAR x_0_1] [VAR x_0_2]]]
+set index_rel [AND $index_rel [OR [VAR x_1] [VAR x_2]]]
 
 # === Indexing Transformation ===
+# set model_id [check_symsim -model -create]
 # Apply the indexing transformation to the stimuli
 # set transformed_ant_stimuli $antv
 set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
