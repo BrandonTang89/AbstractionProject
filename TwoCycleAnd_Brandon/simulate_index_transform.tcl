@@ -108,7 +108,10 @@ check_symsim -sequence $eval_seq -get $assertions -verbose
 # With the modified property, we can perform the weak preimage transformation to get the transformed consequence
 # We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
 set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
+set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]  
+
+# prop_low should always be false
+# prop_high is the domain of the indexing relation, i.e. all abstraction cases that correspond to some target assignment
 
 PR $prop_high
 PR $prop_low
