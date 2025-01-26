@@ -38,7 +38,6 @@ proc simulate_unit {sig} {
     
     # docs state that it should be indexed by 0; actual behavior appears to index by 1
     set i 1
-    puts $inputs
     foreach input $inputs {
         set name_h H$i
         set name_l L$i
@@ -69,11 +68,7 @@ proc transitive_simulate {bdd} {
     return $bdd
 }
  
-# Take the union of two lists, removing duplicates
-# https://stackoverflow.com/a/42959687
-proc list_union {list1 list2} {
-    return [lsort -unique [list {*}$list1 {*}$list2]]
-}
+
 
 # Find the 'free variables' present in a given signal
 # in circuit terminology this means the transitive fanin restricted to only inputs
@@ -241,25 +236,7 @@ proc lpop listVar {
         return $r
 }
 
-# creates fresh boolean variables for at least n cases, and returns those cases
-proc get_case_exprs {n name} {
-    set case_names [make_unique_names $name $n]
-    return [lrange [get_case_exprs_rec $n 2 $case_names] 0 [expr {$n - 1}]]
-}
 
-proc get_case_exprs_rec {n i names} {
-    set x_name [lpop names]
-    set x [VAR $x_name]
-    if {$i >= $n} {
-        return [list $x [NOT $x]]
-    } else {
-        set cases [get_case_exprs_rec $n [expr {$i * 2}] $names]
-        set cases_pos [lmap case $cases {AND $x $case}]
-        set cases_neg [lmap case $cases {AND [NOT $x] $case}]
-
-        return [list_union $cases_pos $cases_neg]
-    }
-}
 
 
 # performs the abstraction step on a BDD tree
@@ -301,7 +278,6 @@ proc bdd_mux_abstract {bdd high low name {constants [list]}} {
         set invert_in [lindex $invert_list 2]
 
         set and_operands [find_big_ands $bdd $invert_out]
-        puts "ops: $and_operands"
         set and_cases [get_case_exprs [llength $and_operands] $name]
         set and_names [make_unique_names $name [llength $and_operands]]
 
@@ -322,7 +298,6 @@ proc bdd_mux_abstract {bdd high low name {constants [list]}} {
         # TODO add the names optimisation hereS
         set result [list]
         foreach op $and_operands case $and_cases x_name $and_names {
-            puts "op: $op, case: $case, name: $x_name"
             set next_sig [lindex $op 0]
             set invert [lindex $op 1]
 
