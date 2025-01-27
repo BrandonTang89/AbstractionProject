@@ -47,10 +47,20 @@ set partition_abstraction [autoabstract spec.property_wire [TRUE] [FALSE] []]
 set inputs [check_symsim -model $model_id -list input]
 set partition_abstraction [rename_partition_abstraction $partition_abstraction $inputs]
 
-set index_rel [combine_abstractions $partition_abstraction]
+set normal_abstraction [normalise_abstraction $partition_abstraction $inputs]
+set abstraction_S [lindex $normal_abstraction 0]
+set abstraction_T [lindex $normal_abstraction 1]
+set dom [get_domain $abstraction_S $abstraction_T]
 
-# Manual correction!!!
-set index_rel [AND $index_rel [OR [VAR x_0_1] [VAR x_0_2]]]
+# set index_rel [combine_abstractions $partition_abstraction]
+set index_rel [combine_abstraction_dict $abstraction_T]
+
+weak_preimage $index_rel 14 $bdd_variables
+weak_preimage_part $abstraction_T $dom 14 $bdd_variables
+
+
+# Manual correction!!! [no longer needed in latest version of autoabstract]
+# set index_rel [AND $index_rel [OR [VAR x_0_1] [VAR x_0_2]]]
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli

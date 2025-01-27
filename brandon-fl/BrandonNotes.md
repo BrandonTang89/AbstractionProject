@@ -51,7 +51,20 @@
 
 ## Symbolic Constants
 - In both the 2007 paper and the current implementation, we support symbolic constants, which are some physical signals that we wish to directly map to a corresponding BDD variable and not do abstraction over.
-- Suppose these signals are $s_1, s_2, ..., s_n$, we could create new bdd variables $c_1, c_2, ..., c_n$ and add $s_i = c_i$ to the indexing relation. However, this is actually unnecessary.
-- We can just reduce the set of target variables to exclude $\{s_1, ..., s_n\}$ and we will get equivalent results in the preimage operations.
-    - Todo: proof of this, modification from 2002 paper
+- Suppose these signals are $s_1, s_2, ..., s_n$, we could create new bdd variables $c_1, c_2, ..., c_n$ and add $s_i = c_i$ to the indexing relation. However, this is actually unnecessary and we can directly "use $c_i$ as $s_i$ interchangably".
+- This means that the relation we create will be of the form `R[X, C, T]` where
+    - `X` is the indexing variables, `C` is the symbolic constants and `T` is the target variables to be abstracted.
+    - The coverage condition is then `∀T∀C ∃X R[X, C, T]`
+    - A (weak) preimage $P_R$ is then in terms of both symbolic constants and indexing variables, i.e. $P_R[X, C] = ∃T (R[X, C, T] \land P[T, C])$
+        - Todo: proof
+        - Idea: consider the indexing relation with the $c_i = s_i$ conjuncts and show that the expressions computed for the preimage computation and coverage condition are effectively the same.
 
+## Preimage Computations of Partitioned Abstractions
+- The automatic abstraction algorithm used here produces a partitioned abstraction of the form `[(targVar / Cexpr, hexpr, lexpr)]`
+    - This is a representation of the indexing relation $\bigwedge (hexpr \rightarrow expr \land lexpr \rightarrow \overline{expr})$ 
+    - `expr` is either some *target variable* or an *expression of symbolic constants*
+    - `hexpr` and `lexpr` are in terms of only the indexing variables.
+
+- This means that we can split the indexing relation into $R = S[X, C] \land T[X, T]$ where $T = \bigwedge_{t_i} (hexpr \rightarrow t_i \land lexpr \rightarrow \overline{t_i})$  
+
+- Note that this analysis only applies when we don't do a parameterisation of the the circuit which would entail a substitution of the target variables with functions over target variables and symbolic constants.
