@@ -67,4 +67,7 @@
 
 - This means that we can split the indexing relation into $R = S[X, C] \land T[X, T]$ where $T = \bigwedge_{t_i} (hexpr \rightarrow t_i \land lexpr \rightarrow \overline{t_i})$  
 
-- Note that this analysis only applies when we don't do a parameterisation of the the circuit which would entail a substitution of the target variables with functions over target variables and symbolic constants.
+- Note that this analysis only applies when we don't do a parameterisation of the the circuit which would entail a substitution of the target variables with functions over target variables and symbolic constants within the indexing relation.
+
+- To do the indexing transformation, we only need to look the components of $T[X, T]$ that are relevant, i.e. have target variables that are present in any predicate $P$ that we take preimages of.
+    - Details in 2007 paper

@@ -87,6 +87,7 @@ proc combine_abstraction_dict {abstraction_dict} {
 
 #######################################
 # Returns the domain of the abstraction efficiently using the normalised abstraction
+# dom(R)[X, C] = ∃T . R[X, T, C]
 #######################################
 proc get_domain {abstraction_S abstraction_T} {
     set domain $abstraction_S
@@ -100,10 +101,13 @@ proc get_domain {abstraction_S abstraction_T} {
 
 #######################################
 # Preimage Computation with Partitioned Abstraction
+# More efficient by exploiting the structure of the partitioned abstraction
+# Analogous to the preimage functions from symsim_helpers_brandon.tcl
 #######################################
 proc weak_preimage_part {abstraction_T domain predicate target_vars} {
     set free_vars [check_symsim -expression -depends $predicate]
     set relevant_target_vars [intersect $free_vars $target_vars]
+    # puts "relevant_target_vars: $relevant_target_vars"
 
     if {[llength $relevant_target_vars] == 0} {
         return [AND $domain $predicate]
@@ -112,24 +116,54 @@ proc weak_preimage_part {abstraction_T domain predicate target_vars} {
         return [AND $domain [NOT $lexpr]]
     } elseif {[dict exists $abstraction_T [NOT $predicate]]} {
         set hexpr [lindex [dict get $abstraction_T [NOT $predicate]] 0]
-        return [AND $domain [NOT hexpr]]
+        return [AND $domain [NOT $hexpr]]
     } else {
         set restricted_dict [dict create]
-        foreach key [dict keys $abstraction_T] {
-            if {[lsearch $relevant_target_vars $key] != -1} {
-                dict set restricted_dict $key [dict get $abstraction_T $key]
-            }
+        foreach relevant_target_var $relevant_target_vars {
+            dict set restricted_dict [VAR $relevant_target_var] [dict get $abstraction_T [VAR $relevant_target_var]]
         }
-
+        
+        puts "Restricted dict: $restricted_dict"
         set RDownP [combine_abstraction_dict $restricted_dict]
-
         return [AND $domain [weak_preimage $RDownP $predicate $relevant_target_vars]]
     }
 }
 
+proc strong_preimage_part {abstraction_T domain predicate target_vars} {
+    # Domain conjuct should not be necessary
+    # return [AND $domain [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]]
+    return [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]
+}
+
+proc apply_preimage_part {preimage_part_func stimuli_dict abstraction_T domain target_variables} {
+    set transformed_dict [dict create]
+    foreach signal_name [dict keys $stimuli_dict] {
+        set stimuli_list [dict get $stimuli_dict $signal_name]
+        set transformed_stimuli_list [list]
+        foreach stimuli_tuple $stimuli_list {
+            set bdd_expr_id [lindex $stimuli_tuple 0]
+            set not_bdd_expr_id [lindex $stimuli_tuple 1]
+            set tick_range [lindex $stimuli_tuple 2]
+            set transformed_var [eval [list $preimage_part_func $abstraction_T $domain $bdd_expr_id $target_variables]]
+            set transformed_not_var [eval [list $preimage_part_func $abstraction_T $domain $not_bdd_expr_id $target_variables]]
+            lappend transformed_stimuli_list [list $transformed_var $transformed_not_var $tick_range]
+        }
+        dict set transformed_dict $signal_name $transformed_stimuli_list
+    }
+    return $transformed_dict
+}
+
+proc strong_preimage_stim_part {stimuli_dict abstraction_T domain target_variables} {
+    return [apply_preimage_part strong_preimage_part $stimuli_dict $abstraction_T $domain $target_variables]
+}
+
+proc weak_preimage_stim_part {stimuli_dict abstraction_T domain target_variables} {
+    return [apply_preimage_part weak_preimage_part $stimuli_dict $abstraction_T $domain $target_variables]
+}
+
 #######################################
 # Combines a partititioned abstraction into a single abstraction
-# For use with the basic indexing transformation
+# For use with the basic indexing transformation, (rather than the partitioned one)
 # The abstraction is a list of tuples (expr, highexpr, lowexpr)
 # The combined abstraction is the conjunction of all the highexpr -> expr and lowexpr -> NOT expr
 #######################################

@@ -1,6 +1,6 @@
-######################################
-# Verification of simple circuit with automatic abstraction
-######################################
+############################################
+# Verification of simple circuit with automatic abstraction and efficient indexing transformation
+############################################
 clear -all
 analyze -sv simple.sv
 analyze -sva simple_spec.sva
@@ -50,11 +50,14 @@ set partition_abstraction [autoabstract spec.property_wire [TRUE] [FALSE] []]
 set inputs [check_symsim -model $model_id -list input]
 set partition_abstraction [rename_partition_abstraction $partition_abstraction $inputs]
 
-set index_rel [combine_abstractions $partition_abstraction]
+set normal_abstraction [normalise_abstraction $partition_abstraction $inputs]
+set abstraction_S [lindex $normal_abstraction 0]
+set abstraction_T [lindex $normal_abstraction 1]
+set dom [get_domain $abstraction_S $abstraction_T]
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
+set transformed_ant_stimuli [strong_preimage_stim_part $antv $abstraction_T $dom $bdd_variables]
 
 # Create a sequence from tranformed stimuli
 set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
@@ -76,9 +79,8 @@ check_symsim -sequence $eval_seq -get [list o] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
-
+set prop_high $dom
+set prop_low [FALSE]
 
 check_symsim -expression -depends $prop_high
 PR $prop_high
@@ -86,3 +88,15 @@ PR $prop_low
 
 check_properties_against_sim $properties $eval_seq $prop_high $prop_low
 check_symsim -expression -get_canonical $prop_high
+
+
+#######
+#######
+# set index_rel [combine_abstractions $partition_abstraction]
+# set index_rel [combine_abstraction_dict $abstraction_T]
+# set expr [AND [VAR a] [VAR b] [VAR c] [VAR d]]
+# weak_preimage_part $abstraction_T $dom $expr [list a b c d]
+# weak_preimage $index_rel $expr [list a b c d]
+# strong_preimage_part $abstraction_T $dom $expr [list a b c d]
+# strong_preimage $index_rel $expr [list a b c d]
+# set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
