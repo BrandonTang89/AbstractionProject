@@ -72,3 +72,14 @@ proc dict_map {dictionary proc} {
     }
     return $result
 }
+
+# === Procedure to return the intersection of two lists ===
+proc intersect {list1 list2} {
+    set result {}
+    foreach item $list1 {
+        if {$item in $list2} {
+            lappend result $item
+        }
+    }
+    return $result
+}

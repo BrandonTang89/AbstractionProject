@@ -2,8 +2,8 @@
 // (not for verification yet, just for automatic abstraction stuff)
 
 module cam_spec_aa #(
-    parameter MEM_SIZE = 2**4,
-    parameter WORD_SIZE = 32
+    parameter MEM_SIZE = 2**2,
+    parameter WORD_SIZE = 4
 ) (
     input logic [WORD_SIZE-1:0] inp,
     input logic [MEM_SIZE-1:0] mem [WORD_SIZE-1:0],

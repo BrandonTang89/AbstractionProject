@@ -1,0 +1,21 @@
+// An example specification used to test automatic indexing relation generation
+// Circuit taken from Automatic Abstraction in Symbolic Trajectory Evaluation, Adams, 2007, Figure 2
+
+module simple_spec #() (
+    input logic  clk,
+    input logic a, b, c, d,
+    input logic o
+);
+
+logic spec_wire, property_wire;
+
+assign desired_wire = (a | b) & c & d;
+assign property_wire = o == desired_wire;
+
+simple_prop:
+    assert property
+        (property_wire);
+
+
+endmodule
+

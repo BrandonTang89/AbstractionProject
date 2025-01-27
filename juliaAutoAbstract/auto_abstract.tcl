@@ -3,6 +3,10 @@
 variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir auto_abstract_simple.tcl]
 
+proc TC {sig} {
+    return [check_symsim -expression -top_cofactor $sig]
+}
+
 proc freevars_signal {sig} {
     if {[get_signal_info $sig] == "input"} {
         # special case: if we have an input variable, it's fanin will be empty, but it drives itself.
@@ -52,14 +56,15 @@ proc sort_inp_args {C sig} {
     return $sigs
 }
 
-proc get_case_exprs {name n} {
-    # for now, only deal with n=2
-    if {$n != 2} {
-        error "get_case_exprs for n!=2 is currently unimplemented (your n: $n)"
-    }
-
-    return [list [VAR c_$name] [NOT [VAR c_$name]]]
-}
+# removed, i have a better version
+#proc get_case_exprs {name n} {
+#    # for now, only deal with n=2
+#    if {$n != 2} {
+#        error "get_case_exprs for n!=2 is currently unimplemented (your n: $n)"
+#    }
+#
+#    return [list [VAR c_$name] [NOT [VAR c_$name]]]
+#}
 
 proc make_same_names {name n} {
     set names [list]

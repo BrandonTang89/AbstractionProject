@@ -1,0 +1,5 @@
+So the type-D reports it's excitation function as 
+
+    ( _clkH & ~_clkL & _hitH)
+  | ( _clkL &   clkH & (_clkH | clkL))
+  | (~_clkH & )

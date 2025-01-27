@@ -46,7 +46,9 @@ proc strip_NOT {sig} {
 
 proc is_VAR {sig} {
 
-    if {[get_signal_info $sig] == {input}} {
+    set inclusion [expr {$sig in [check_symsim -model [check_symsim -model -get] -list input]}]
+    set fanin_size [llength [check_symsim -model -get_sig_fanin $sig]]
+    if {$inclusion || $fanin_size == 0} {
         return 1
     }
     return 0

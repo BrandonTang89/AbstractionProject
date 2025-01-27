@@ -11,14 +11,14 @@ module andComponent #(
 
 generate
         if (WIDTH == 2) begin
-            assign result = operands[0] & operands[1];
+            assign result = operands[0] | operands[1];
         end
         
         else begin
             // divide in half and recurse
             andComponent #(WIDTH/2) l (operands[WIDTH/2-1:0], lResult);
             andComponent #(WIDTH/2) h (operands[WIDTH-1:WIDTH/2], hResult);
-            assign result = lResult & hResult;
+            assign result = lResult | hResult;
         end
 endgenerate
 
@@ -26,7 +26,7 @@ endmodule
 
 
 module megaAnd #(
-    parameter WIDTH=16
+    parameter WIDTH=128
 ) (
     input [WIDTH-1:0] operands,
     input logic trigger,
