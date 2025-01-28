@@ -52,6 +52,8 @@ proc simulate_unit {sig} {
 
 proc transitive_simulate {bdd} {
     if {![string is digit $bdd]} {
+        # then we're dealing with a signal, rather than a BDD!
+
         set inclusion [expr {$bdd in [check_symsim -model [check_symsim -model -get] -list input]}]
         set fanin_size [llength [check_symsim -model -get_sig_fanin $bdd]]
         if {$inclusion || $fanin_size == 0} {
@@ -62,7 +64,8 @@ proc transitive_simulate {bdd} {
     }
 
     foreach sig [check_symsim -expression -depends $bdd] {
-        set bdd [check_symsim -expression -substitute $bdd [dict create [VAR $sig] [transitive_simulate $sig]]]
+        set subs_dict [dict create $sig [transitive_simulate $sig]]
+        set bdd [check_symsim -expression -substitute $bdd $subs_dict]
     }
 
     return $bdd
