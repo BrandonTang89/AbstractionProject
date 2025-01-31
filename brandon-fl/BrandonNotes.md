@@ -33,7 +33,7 @@
     - In fact, even if we have multiple properties to check, we will always be taking weak preimages of `TRUE` and `FALSE` so do not need to repeatedly perform the preimage operation.
     - Furthermore, the preimage of `FALSE` is always `FALSE`
     - The preimage of `TRUE` can be thought of as any assigments to XS that have any mapping to the targets TS. I.e. the useful and consistent   cases of the abstraction.
-        - This is described as $dom(R)[X] = ∃T\  R[X,T]$ in the 2007 paper.
+        - This is described as $dom(R)[X] = ∃T\  R[X,T]$ in the 2013 paper.
 
     - Note that this even works when we do parameterisation since when we substitute the functions for the original variables, we won't be doing any substitution in the `TRUE` and `FALSE` expressions.
 
@@ -53,12 +53,13 @@
 - We do a weak preimage on the guards of the output constraints:
     - Suppose we do a weak preimage on the `highexpr` of some `cout` expr `e`. This corresponds to requiring the constraint to hold for every indexing case that causes `e` to be true, i.e. all cases where the constraint is required to be true. This is a strengthening of the constraint.
 
-### Counter Examples and Unproven Cases
+### Counter Examples and Weak Disagreement
 - For each assignment of indexing input $(X, C)$, we can end up with the property in 1 of 3 cases:
     - Proven: $highexpr(X, C) \land \lnot lowexpr(X, C) \equiv true$
-    - Unproven: $\lnot highexpr(X, C) \land \lnot lowexpr(X, C) \equiv true$
+    - Weak Disagreement: $\lnot highexpr(X, C) \land \lnot lowexpr(X, C) \equiv true$
     - Counterexample: $\lnot highexpr(X, C) \land lowexpr(X, C) \equiv true$
-- We can do analysis on unproven cases and counter examples by inspecting the residual $Q[X, C]$
+    - We call a property unproven if it is either weak disagreement or a counterexample.
+- We can do analysis on unproven cases by inspecting the residual $Q[X, C]$
     - Specifically, we need to check which cases are not indexed by $Q \land Dom(R)$
     - $Cex[T, C] = \forall X (R[X, C, T] \land Dom(R)[X, C] \rightarrow \lnot Q[X, C])$
     - $Cex[T, C] = \lnot I_{(Dom(R) \land Q), R}[T, C]$ 
