@@ -18,13 +18,12 @@
 #let False = "False"
 
 == Symbolic Simulation for Functional Properties
-The input to the symbolic simulation consists of an antecedent and a list of output constraints.
+The input to symbolic trajectory evaluation consists of an antecedent and a list of output constraints.
   - The antecedent maps BDD variables to input wires in the circuit
   - The output constraints map BDD expressions to signals in the circuit
     - These allow us to assert if a certain wires should be high/low/either at a certain time step for given conditions based on the antecedent
-- These were traditionally written in the form of LTL formulae, but have been rewritten into a 4 tuple form in the 2013 paper, in VOSS and in JasperGold.
-
-In JasperGold, antecedents and output constraints are written in the following form:
+    
+These were traditionally written in the form of LTL formulae, but have been rewritten into a 4 tuple form in VOSSII as follows:
 $ [("signal", "tickStart":"tickEnd", "highExpr", "lowExpr")] $
 
 This is equivalent to the LTL formula `N^tick ((highExpr -> (signal is 1) and lowExpr -> (signal is 0))) for each tick in the range`.
@@ -32,6 +31,10 @@ This is equivalent to the LTL formula `N^tick ((highExpr -> (signal is 1) and lo
 For an antecedent, this means that we will set the signal to be true if the `highExpr` is true and set the signal to be false if the `lowExpr` is true. Otherwise the signal is `X`.
 
 For output constraints this means that when the assignment of BDD variables make `highExpr` true, we need the signal to be high from `tickStart` to `tickEnd`. Similarly for `lowExpr`. Thus each output constraint tuple can be split into 2 parts: the positive constraint where we need the signal to be true under a certain condition, and the negative constraint where we need the signal to be false under a certain condition. We let the `highExpr` and `lowExpr` be termed as the guards of the constraint.
+
+Jaspergold fully implements symbolic simulation without support for abstraction with an indexing relation. Here, antecedents are not dual rail but rather just singular expressions, this means that we have no symbolic indexing and abstraction beyond the inital Xs present in the circuit. The output constraints here also do not have guards. To conditionally check properties, we would adjust the input constraint `cin`.
+
+For the purposes of doing symbolic indexing, we settled on using the 4-tuple form of antecedents and output. This makes it easier to port over the existing theory on indexing transformations from the STE papers. Furthermore, Jasper's symbolic simulation engine accepts stimuli in the form of the 4-tuple antecedent.
 
 
 == Indexing Relations
@@ -102,7 +105,7 @@ We first apply the strong preimge operations on the high and low expressions of 
 
 `antv = [(signal, tickStart:tickEnd, strongPreimage idx_rel highExpr, strongPreimage idx_rel lowExpr)]`
 
-Next we run the symbolic simulator with the transformed antecedent. This produces an evaluation sequence which will contain `sigHighExpr` and `sigLowExpr` BDD expressions for when a signal at a certain time step will definitely be high or low. If for a given assignment, neither of these expressions are true, then the signal is unknown.
+Next we run the symbolic simulator with the transformed antecedent. This produces an evaluation sequence which will contain `sigHighExpr` and `sigLowExpr` BDD expressions for when a signal at a certain time step will definitely be high or low. If for a given assignment, neither of these expressions are true, then the signal is unknown. For a given signal and time step $s$, we let the high expression be $H_s$ and the low expression be $L_s$.#footnote([We will sometimes drop the subscript when there is only 1 relevant signal and time step being considered.])
 
 From this evaluation sequence, we can then check the output constraints. Suppose want to check a output constraint of the form `(signal, tickStart:tickEnd, P, Q)` where $P[C, T]$ and $Q[C, T]$ are the BDD expressions that correspond to inputs on which a signal should be high and low respectively. We will transform the output constraint to `(signal, tickStart:tickEnd, P_R, Q_R)` where $P_R$ and $Q_R$ are the weak preimages of $P$ and $Q$ under the indexing relation.
 
@@ -110,9 +113,9 @@ Then we analyse the `highexpr` and `lowexpr` BDD expressions from the evaluation
 
 We will check if $(P_R -> H)[X, C] equiv True$ and whether $(Q_R -> L)[X, C] equiv True$. If both of these hold, then the output constraint is satisfied.
 
-If we have $(P^R -> L) != False$ it means that some indexing cases that only index into $P$ actually cause $s$ to be low, this is a counter example to the property so the positive part of property is disproven. We can inspect the cases indexed by $P^R -> L$ to get the actual counter example in terms of the original circuit inputs. 
+If we have $(P^R and L) != False$ it means that some indexing cases that only index into $P$ actually cause $s$ to be low, this is a counter example to the positive part of property so the positive part of property is disproven. We can inspect the cases indexed by $(P^R and L)$ to get the actual counter example in terms of the original circuit inputs. 
 
-Similarly, if we have $(Q^R -> H) != False$, we have disproven the negative part of the property.
+Similarly, if we have $(Q^R and H) != False$, we have disproven the negative part of the property.
 
 It is possible to not prove the property but also have no counter examples. This can happen in cases where the antecedent does not provide enough information to prove or disprove the property. This is called a weak disagreement and requires changing the indexing relation to obtain a proof/counter example.
 
@@ -121,12 +124,12 @@ We prove that the above procedure for indexing transformation and output constra
 
 Here we only need to focus on proving the correctness of positive output constraint checking, i.e. that under a certain condition, a signal will be high. The proof for the negative output constraint checking is analagous.
 
-In fact, with our formulation of relational properties later on, we don't even need to deal with guards, but our proof of correctness will deal with the general case.
+With our formulation of relational properties later on, we don't even need to deal with guards, but our proof of correctness will deal with the general case since guards can help with environmental constraints (discussed later).
 
 === Symbolic Simulation Invariant
-Consider some residual $H[X, C]$ (the `highexpr` in a symbolic simulation evaluation sequence) in a signal $s(C, T)$ at a fixed time step. We always have the fact that
+Consider some residual $H_s [X, C]$ in a signal $s(C, T)$ at a fixed time step. We always have the fact that
 
-$ H[X, C] and R[X, C, T] -> s(C, T) $
+$ H_s [X, C] and R[X, C, T] -> s(C, T) $
 
 (For all $X, C, T$)
 
@@ -135,7 +138,7 @@ This can be proved via induction on the fan-in of $S$.
 The basecase is where $s$ is an input or state variable corresponding to a certain time step, with `highexpr` $P$. In this case, since we apply the strong preimage to the antecedents, we have that
 $ H = P^R = dom(R) and forall T (R[X, C, T] -> P[C, T]) $
 
-This directly gives us that for all $X, C, T$ where $H[X, C] and R[X, C, T]$, we have $P[C, T]$. But $s(C, T) = P[C, T]$ so we are done.#footnote([Note that we don't use the domain part. Indeed, the analysis will still work, but the weak preimage serves to remove useless/inconsistent indexing cases. This will help in avoiding false counter examples.])
+This directly gives us that for all $X, C, T$ where $H[X, C] and R[X, C, T]$, we have $P[C, T]$. But $s(C, T) = P[C, T]$ so we are done.#footnote([Note that we don't use the domain part for this. Indeed, the analysis will still work, but this serves to remove useless/inconsistent indexing cases. This is useful for counterexample analysis later on.])
 
 An inductive case example: 
 
@@ -173,8 +176,19 @@ We can then prove output constraints of the form $forall C forall T (P[T, C] -> 
 For our purposes where we use just need to prove that a certain wire is always high, we don't need this component. That being said, analysis of $L[X, C]$ is important for finding weak disagreements and counter examples.
 
 === Counter Example Analysis
-Suppose that we have $P^R -> L != False$, let $(X, C)$ be such that $(P^R -> L)[X, C]$ is true. 
+Suppose that we have $P^R and L != False$. Let $(X, C)$ be such that $(P^R and L)[X, C]$ is true. We show that $(X, C)$ is a counter example to the property $forall C forall T (P(C, T) -> s(C, T))$.
 
+We select some $T\*$ such that $R[X, C, T\*]$ is true. This must exist since $P^R = dom(R) and forall T (R[X, C, T] -> P[C, T])$ so $(X, C)$ is in the domain of $R$, meaning that $exists T R[X,C,T]$. 
+
+Now since $forall T (R[X, C, T] -> P[C, T])$, we must also have that $P[C, T\*]$ is true. 
+
+The symbolic simulation invariant for negative properties says that $L[X, C] and R[X, C, T] -> not s(C, T)$. Since $L[X, C]$ and $R[X, C, T\*]$ are true, then $not s(C, T\*)$ is true. 
+
+By considering the example $(C, T\*)$, we have $exists C exists T (P(C, T) and not s(C, T)) equiv not forall C forall T (P(C, T) -> s(C, T))$ being true, so the property is disproven.
+
+It is practical to note that that the set of counter examples we find is ${(C, T) | exists X(R[X, C, T] and L[X, C] and P^R [X, C])}$ which is described by the image operation on $P^R and L$, $im(P^R and L, R)$.
+
+We can prove that the counter example analysis for negative properties is correct in a similar manner.
 
 
 == Converting Relational Constraints to Functional Constraints
@@ -195,7 +209,106 @@ To check the properties, we would usually apply the weak preimage image operatio
 
 This means that we only need to take 1 single preimage operation to get the domain and use that for checking all the various properties written in this form. In fact, computing the domain of an indexing relation generated from our automatic abstraction algorithm is a very simple operation that will be described later.
 
-Furthermore, analysis of counter examples is also simplified. Simply, $True^R -> L = L$ so any time $L$ is not false, we have found a counter example. Specifically, any $T, C$ in the image of $L$ is a counter example. 
+Furthermore, analysis of counter examples is also simplified. 
+ $ True^R and L =  dom(R)[X, C] and L = L $ 
+ 
+The 2nd equality comes from the fact that we take the strong preimage of the antecedents, so for any signal and time step $s$, $H_s$ and $L_s$ do not include any cases that are not in the domain of $R$. I.e. $H_s or L_s -> dom(R)$. This can be proven with induction over the circuit in the same manner as the symbolic simulation invariants.
 
+So any time $L$ is not false, we have found a counter example.
+Specifically, any $T, C$ in $im(L, R)$ is a counter example. 
 
-== Cbecking Properties under Environmental Constraints
+== Automatic Abstraction
+The original automatic abstraction algorithm from 2007 performed a recursive back propagation from the functional output of the specification to automatically create an indexing relation. By calling `bp(C, specOutput, x_0, not x_0, name)`, we would produce an abstraction that considered all the cases that caused the `specOutput` to be `true` or `false`, while keeping all the signals in `C` as symbolic constants.
+
+The cost savings of the indexing relation came from only using 1 BDD variable on `XNOR` gates and doing a binary encoding on AND gates with $>= 3$ inputs.
+  - For the XNOR gate, we only needed to consider if it was true or false, and it was true by having both inputs equal and false by having both inputs different.
+  - For the AND gate with $n$ inputs, we have $n+1$ cases. Either any of the inputs are false, i.e. the first $n$ cases, or all of them are true, the last case. This would be constrasted with the $2^n$ cases that would be required if we did not use the indexing relation.
+
+This has been reimplemented and improved.
+
+Since we are looking specifically at properties of the form "the property wire is true", we don't need to be concerned with considering any indexing case where the property wire is false (because there shouldn't be any). This means that we should run 
+
+#align(center)[
+  `bp(C, property_wire, TRUE, FALSE, name)`
+]
+
+To generate the required indexing relation.
+
+=== Partitioned Abstraction Preimage
+The automatic abstraction algorithm used here produces a partitioned abstraction of the form 
+
+#align(center)[`[(expr = targVar / Cexpr, hexpr, lexpr)]`]
+
+#let hexpr = "hexpr"
+#let lexpr = "lexpr"
+This is a representation of the indexing relation $and.big ("hexpr" -> "expr" and "lexpr" -> overline("expr"))$ where `expr` is either some *target variable* or an *expression of symbolic constants* while `hexpr` and `lexpr` are in terms of only the indexing variables.
+
+This representation allows more efficient computation of preimages. We first normalise $R$ into 
+
+$ R = S[X, C] and U[X, T] $
+where $U[X, T] = and.big_(t_i in "TargVars") (h_i -> t_i and l_i -> overline(t_i)) $  
+
+We can then make several observations. 
+
+Firstly, $ dom(R)[X, C] = S and and.big_(i) overline(h_i and l_i) $
+
+Proof:
+$ dom(R)[X, C] &= exists T R[X, C, T]\
+               &= S[X, C] and exists T U[X, T]\
+               &= S[X, C] and and.big_i (exists t_i (h_i -> t_i and l_i -> overline(t_i))) \
+               &= S[X, C] and and.big_i (((h_i -> 1) and (l_i -> 0)) or ((h_i -> 0 and l_i -> 1)))\
+               &= S[X, C] and and.big_I (not l_i or not h_i)\
+               &= S and and.big_(i) overline(h_i and l_i) $
+
+Thus we are able to compute the domain of the indexing relation easily.
+
+Secondly, to compute the preimage of some guard $P[C, T]$, we let $R arrow.b P$ denote that the part of the indexing relation that mentions target variables present in $P$. Specifically, if $cal(F) = "FreeTargVars"(P)$ then 
+
+$ R arrow.b P = S[X, C] and and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) $
+
+We have that $P_R = dom(R) and P_(R arrow.b P)$
+
+Proof:
+$ P_R[X, C] &= exists T (R[X, C, T] and P[C, T])\
+      &= exists T (S[X, C] and and.big_(t_i in.not cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T])  \
+
+      &= S[X, C] and exists T_(not cal(F)) (and.big_(t_i in.not cal(F)) (h_i -> t_i and l_i -> overline(t_i)))\ 
+       &space space and exists T_(cal(F)) (and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T])\  
+
+      &= S[X, C] and exists T_(not cal(F)) (and.big_(t_i in.not cal(F)) (h_i -> t_i and l_i -> overline(t_i))) and exists T_(cal(F)) (and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)))\ 
+       &space space and S[X, C] and exists T_(cal(F)) (and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T]) \
+
+      &= S[X, C] and exists T (and.big_(t_i in "targVars") (h_i -> t_i and l_i -> overline(t_i)))\ 
+       &space space and exists T_(cal(F)) (S[X, C] and and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T])\
+
+      &= S[X, C] and and.big_i (overline(h_i and l_i)) and P_(R arrow.b P)\
+
+      &= dom(R) and P_(R arrow.b P)
+$
+
+Now, we can even further consider common cases of $P$ that we will be constructing preimages for.
+
+$
+  P_R = cases(
+    dom(R) and P "if " cal(F) sect "TargVars" = emptyset, 
+    dom(R) and overline(l_i) "if " P = t_i,
+    dom(R) and overline(h_i) "if " P = overline(t_i),
+    dom(R) and P_(R arrow.b P) "otherwise"
+  )
+$
+
+Proof:
+
+If $cal(F) sect "TargVars" = emptyset$, $P_(R arrow.b P) = True$ so $ P_R = dom(R) and exists T (P[C, T]) = dom(R) and P $
+
+If $P = t_i$, $P_(R arrow.b P) = (h_i -> t_i) and (l_i -> overline(t_i))$, so 
+$ P_R = dom(R) and exists t_i ((h_i -> t_i) and (l_i -> overline(t_i) and t_i) and t_i) = dom(R) and overline(l_i) $
+
+The $P = overline(t_i)$ case is analagous to the above.
+
+== Checking Properties under Environmental Constraints
+Environmental constraints are constraints on the inputs to the circuit. They are of the form $P[C, T]$ to denote that we only need a constraint to hold if $P[C, T]$ is true.
+
+Notice that one easy way to include environmental constraints is to simply add them to the guards of the output constraint. This means that we don't need to deal with them up until checking the output constraint, and we can do so by taking the preimage of the environmental constraint under the indexing relation and checking if it implies the residual of the signal.
+
+However, this can lead to issues where 
