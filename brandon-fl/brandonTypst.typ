@@ -16,6 +16,8 @@
 #let dom ="dom"
 #let True = "True"
 #let False = "False"
+#let ent = $tack.double$
+#let nent = $tack.double.not$
 
 == Symbolic Simulation for Functional Properties
 The input to symbolic trajectory evaluation consists of an antecedent and a list of output constraints.
@@ -113,7 +115,7 @@ Then we analyse the `highexpr` and `lowexpr` BDD expressions from the evaluation
 
 We will check if $(P_R -> H)[X, C] equiv True$ and whether $(Q_R -> L)[X, C] equiv True$. If both of these hold, then the output constraint is satisfied.
 
-If we have $(P^R and L) != False$ it means that some indexing cases that only index into $P$ actually cause $s$ to be low, this is a counter example to the positive part of property so the positive part of property is disproven. We can inspect the cases indexed by $(P^R and L)$ to get the actual counter example in terms of the original circuit inputs. 
+If we have $(P^R and L) != False$ it means that some indexing cases that only index into $P$ actually cause $s$ to be low, this is a counter example to the positive part of property so the positive part of property is disproven. We can inspect the cases indexed as $im(P^R and L, R)$ to get the actual counter example in terms of the original circuit inputs. 
 
 Similarly, if we have $(Q^R and H) != False$, we have disproven the negative part of the property.
 
@@ -167,6 +169,15 @@ Fix some $C, T$ such that $P[C, T]$ is true.
 - But now since  $P_R [X, C] -> H[X, C]$, we have $H[X\*, C]$ as well
 - Using the symbolic simulation invariant, since $H[X\*, C]$ and $R[X\*, C, T]$ are true, then $s(C, T)$ is true
 - Since this did not rely on the values of $C, T$, then we have that $forall C forall T (P[T, C] -> s(C, T))$ is true
+
+==== Alternative Checking by Reversing the Indexing
+Another way to do the check is to take the image of the residual under the indexing relation, i.e. $im(H, R)[C,T]$. This will symbolically represent all the cases for which we know the property will hold. 
+
+$ C, T in im(H, R) &=> exists X (H[X, C] and R[X, C, T]) \
+                   &=> H[X\*, C] and R[X\*, C, T] "for some" X\* \
+                   &=> s(C, T) "by symbolic simulation invariant" $
+
+We can then check that $P -> im(H,R) equiv True$. If so then the property is true. On some circuits and indexing relations, this method can avoid weak disagreements compared to the above method. This is particularly true if some cases in $P$ are indexed by multiple $X, C$. However, if the number of indexing variables is much less than the number of target variables, this method can be result in large BDDs that may be infeasible to compute.
 
 === Negative Output Constraints
 We can set up an analagous invariant for the `lowexpr` values in the symbolic simulation. We will then be able to prove that if $L$ is the lowexpr of $s(C, T)$, then $(L[X, C] and R[X, C, T] -> not s(C, T))$.
@@ -307,8 +318,18 @@ $ P_R = dom(R) and exists t_i ((h_i -> t_i) and (l_i -> overline(t_i) and t_i) a
 The $P = overline(t_i)$ case is analagous to the above.
 
 == Checking Properties under Environmental Constraints
-Environmental constraints are constraints on the inputs to the circuit. They are of the form $P[C, T]$ to denote that we only need a constraint to hold if $P[C, T]$ is true.
+Environmental constraints are constraints on the inputs to the circuit. They are of the form $P[C, T]$ to denote that we only need a constraint to hold if $P[C, T]$ is true. We call such a constraint a "care predicate".
 
-Notice that one easy way to include environmental constraints is to simply add them to the guards of the output constraint. This means that we don't need to deal with them up until checking the output constraint, and we can do so by taking the preimage of the environmental constraint under the indexing relation and checking if it implies the residual of the signal.
+=== Index Over Care Predicate Cases
+Notice that one easy way to include environmental constraints is to simply add them to the guards of the output constraint. We can then check for the property holding under the enviromental constraint as described above. 
 
-However, this can lead to issues where 
+However, this can lead to problems for abstractions that merge cases covering $(C_1, T_1), (C_2, T_2)$ where $C_1, T_1 ent P$ but $C_2, T_2 nent P$. Specifically, are more likely to have weak disagreements as these cases cannot assume the environmental constraint holds. This is referenced to in the 2002 paper where it is recommended to find indexing relations that exactly index cases in $P$ and not any in $not P$. It is recommended to find an indexing relation specific to each particular constraint that avoids covering unnecessary cases not in $P$.
+
+Another way to mitigate the weak disagreements is to use the alternative checking method involving reversing the indexing, described earlier. This can avoid weak disagreements in some cases but can be more computationally expensive. This is especially true if we use the automatic abstraction algorithm since we cannot make use of the partitioned abstraction preimage.
+
+=== Parametric Encoding
+An alternative approach would be to use the `param` function to encode the care predicate into the indexing relation, the antecedent and the output constraints. Details in the 2002 paper.
+
+This has the problem where the partitioned indexing relation structure is destroyed during the folding of the param substitutions into the indexing relation.
+
+An alternative similar strategy would involve doing the parameterisation first and then doing the automatic abstraction. However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, it is possible to only apply param on the other input signals and leave the symbolic constants as is.
