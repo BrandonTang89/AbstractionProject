@@ -232,6 +232,32 @@ proc find_big_ands {bdd needsinvert constants} {
     return [list_union $sw_and_list $in_and_list]
 }
 
+# divides a list of signals and bdd nodes into two lists -- one where the signal or bdd depends on the constants, and one where they do not.
+# this function works with the tuple-lists returned by find_big_ands
+# it will also convert all the elements of the cis list to bdds, incorporating the 2nd element of the tuple
+proc separate_and_signals {signals constants} {
+    set cis [list]
+    set oinps [list]
+
+    foreach sig_tuple $signals {
+        if {[is_const $constants [lindex $sig_tuple 0]]} {
+            set $sig [lindex $sig_tuple 0]
+            if {[string is digit $sig]} {
+                set $sig [simulate $sig]
+            }
+            if {[lindex $sig_tuple 1]} {
+                lappend cis [NOT $sig]
+            } else {
+                lappend cis $sig
+            }
+        } else {
+            lappend oinps $sig_tuple
+        }
+    }
+
+    return [list $cis $oinps]
+}
+
 # from https://wiki.tcl-lang.org/page/Performance+of+Various+Stack+Implementations by Lars Hellström
 proc lpop listVar {
         upvar 1 $listVar l
@@ -260,6 +286,8 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
 
     set mux_type [bdd_mux_type $bdd]
 
+    puts "type: $mux_type"
+
     if {$mux_type == "mux_wire"} {
         # then pass everything through to the switching signal
         return [bdd_abstract $var $high $low $name $constants]
@@ -271,18 +299,18 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
         set x_name [lindex [make_unique_names $name 1] 0]
         set x [VAR $x_name]
 
-        # handle constants on the switching input
+        # handle fconstants on the switching input
         if {[is_const $constants $var]} {
-            set $x [transitive_simulate $var]
+            set x [transitive_simulate $var]
             set var_ab ""
         } else {
             set var_ab [bdd_abstract $var [AND [OR $high $low] $x] [AND [OR $high $low] [NOT $x]] $x_name $constants]
         }
 
-        # due to the variable ordering condition, it's impossible for these to be constants when sig is not
-        # so we can in particular ignore the case where both are constant and the switching input is not
-        # furthermore it's impossible for all three to be constant; that would be covered by the base case at the top of the function
-        # so we need only handle the case where either none, or exactly one is constant
+        # due to the variable ordering condition, it's impossible for these to be fconstants when sig is not
+        # so we can in particular ignore the case where both are fconstant and the switching input is not
+        # furthermore it's impossible for all three to be fconstant; that would be covered by the base case at the top of the function
+        # so we need only handle the case where either none, or exactly one is fconstant
 
         if {![is_const $constants $sigHigh]} {
             set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low] $x_name $constants]
@@ -300,7 +328,7 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
 
 
     } elseif {$mux_type == "mux_one"} {
-        # if one of the inputs is constant, then the mux reduces down to a single AND gate with some inversions
+        # if one of the inputs is terminal, then the mux reduces down to a single AND gate with some inversions
    
 
         set invert_list [bdd_mux_one_type $bdd]
@@ -310,7 +338,12 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
         set invert_sw [lindex $invert_list 1]
         set invert_in [lindex $invert_list 2]
 
-        set and_operands [find_big_ands $bdd $invert_out $constants]
+        set and_operands_raw [find_big_ands $bdd $invert_out $constants]
+        set and_operands_pair [separate_and_signals $and_operands_raw $constants]
+        set and_operands_const [lindex $and_operands_pair 0]
+        set and_const_combined [check_symsim -expression -and $and_operands_const]
+        set and_operands [lindex $and_operands_pair 1]
+
         set and_cases [get_case_exprs [llength $and_operands] $name]
         set and_names [make_unique_names $name [llength $and_operands]]
 
@@ -327,16 +360,19 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
             set and_names [make_same_names $name [llength $and_operands]]
         }
 
-
-        set result [list]
+        if {$and_const_combined eq [TRUE]} {
+            set result [list]
+        } else {
+            set result [list [list $and_const_combined $high [FALSE]]]
+        }
         foreach op $and_operands case $and_cases x_name $and_names {
             set next_sig [lindex $op 0]
             set invert [lindex $op 1]
 
             if {$invert} {
-                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp $case] $high_temp $x_name $constants]]
+                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp [AND $case $and_const_combined]] $high_temp $x_name $constants]]
             } else {
-                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp $case] $x_name $constants]]
+                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp [AND $case $and_const_combined]] $x_name $constants]]
             }
         }
 
@@ -420,4 +456,27 @@ proc get_abs_vars {abs} {
         set vars [list_union $vars [check_symsim -expression -depends [lindex $ab 2]]]
     }
     return $vars
+}
+
+# simplifies an abstraction list, compressing multiple guards for a certain wire into one
+proc simplify_abs_list {abs} {
+    set new_abs [dict create]
+    foreach ab $abs {
+
+        if {[dict exists $new_abs [lindex $ab 0]]} {
+            set existing [dict get $new_abs [lindex $ab 0]]
+            set high [OR [lindex $existing 0] [lindex $ab 1]]
+            set low [OR [lindex $existing 1] [lindex $ab 2]]
+            dict set new_abs [lindex $ab 0] [list $high $low]
+        } else {
+            dict set new_abs [lindex $ab 0] [list [lindex $ab 1] [lindex $ab 2]]
+        }
+    }
+
+    set result [list]
+    dict for {k v} $new_abs {
+        lappend result [list $k [lindex $v 0] [lindex $v 1]]
+    }
+
+    return $result
 }

@@ -33,8 +33,12 @@ proc forward_prop {constants} {
 
 # returns if a bdd depends only on values in the constants list, or if a signal is in the constants list
 proc is_const {constants bdd} {
-    if {$bdd in $constants} {
-        return 1
+    if {!([string is digit $bdd])} {
+        if {$bdd in $constants} {
+            return 1
+        } else {
+            return 0
+        }
     }
 
     # note that we don't need to do this transitively -- once we get the signals, anything else is handled by
