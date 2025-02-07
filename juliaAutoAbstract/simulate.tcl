@@ -4,6 +4,7 @@
 variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir auto_abstract.tcl]
 source [file join $baseDir names.tcl]
+source [file join $baseDir forward_prop_constants.tcl]
 
 
 proc simulate_unit {sig} {
@@ -52,17 +53,20 @@ proc simulate_unit {sig} {
 
 proc transitive_simulate {bdd} {
     if {![string is digit $bdd]} {
+        # then we're dealing with a signal, rather than a BDD!
+
         set inclusion [expr {$bdd in [check_symsim -model [check_symsim -model -get] -list input]}]
         set fanin_size [llength [check_symsim -model -get_sig_fanin $bdd]]
         if {$inclusion || $fanin_size == 0} {
-            return [VAR c_$bdd]
+            return [VAR $bdd]
         }
 
         set bdd [simulate_unit $bdd]
     }
 
     foreach sig [check_symsim -expression -depends $bdd] {
-        set bdd [check_symsim -expression -substitute $bdd [dict create [VAR $sig] [transitive_simulate $sig]]]
+        set subs_dict [dict create $sig [transitive_simulate $sig]]
+        set bdd [check_symsim -expression -substitute $bdd $subs_dict]
     }
 
     return $bdd
@@ -173,7 +177,7 @@ proc bdd_mux_one_type {bdd} {
 # but the gain is tiny and in a large circuit could drastically increase memory consumption since bdd nodes could never be freed
 #
 # the size of the output depends on the BDD ordering -- perhaps it's possible to find orderings that give maximal size somehow?
-proc find_big_ands {bdd needsinvert} {
+proc find_big_ands {bdd needsinvert constants} {
 
     set inputs [TC $bdd]
     set var [lindex $inputs 0]
@@ -190,7 +194,7 @@ proc find_big_ands {bdd needsinvert} {
                 # if the node is an input, terminate the process
                 return [list [list $var $needsinvert]]
             } else {
-                return [find_big_ands [simulate_unit $var] $needsinvert]
+                return [find_big_ands [simulate_unit $var] $needsinvert $constants]
             }
         } else {
             puts "returned early $bdd [bdd_mux_type $bdd]"
@@ -216,16 +220,42 @@ proc find_big_ands {bdd needsinvert} {
     }
 
     # okay, this is an and gate that is consistent with it's ancestors, so we can recurse down it's inputs
-    if {[is_VAR $var]} { 
+    if {[is_VAR $var] || $var in $constants} { 
         # stop recursing, since this is a variable
         set sw_and_list [list [list $var $needsinvert]]
     } else {
-        set sw_and_list [find_big_ands [simulate_unit $var] $invert_sw]
+        set sw_and_list [find_big_ands [simulate_unit $var] $invert_sw $constants]
     }
-    set in_and_list [find_big_ands $sigIn $invert_in]
+    set in_and_list [find_big_ands $sigIn $invert_in $constants]
 
     puts "normal $sw_and_list $in_and_list"
     return [list_union $sw_and_list $in_and_list]
+}
+
+# divides a list of signals and bdd nodes into two lists -- one where the signal or bdd depends on the constants, and one where they do not.
+# this function works with the tuple-lists returned by find_big_ands
+# it will also convert all the elements of the cis list to bdds, incorporating the 2nd element of the tuple
+proc separate_and_signals {signals constants} {
+    set cis [list]
+    set oinps [list]
+
+    foreach sig_tuple $signals {
+        if {[is_const $constants [lindex $sig_tuple 0]]} {
+            set $sig [lindex $sig_tuple 0]
+            if {[string is digit $sig]} {
+                set $sig [simulate $sig]
+            }
+            if {[lindex $sig_tuple 1]} {
+                lappend cis [NOT $sig]
+            } else {
+                lappend cis $sig
+            }
+        } else {
+            lappend oinps $sig_tuple
+        }
+    }
+
+    return [list $cis $oinps]
 }
 
 # from https://wiki.tcl-lang.org/page/Performance+of+Various+Stack+Implementations by Lars Hellström
@@ -241,33 +271,64 @@ proc lpop listVar {
 
 # performs the abstraction step on a BDD tree
 # returns an _abstraction list_ of triples (node, high, low)
-proc bdd_mux_abstract {bdd high low name {constants [list]}} {
+proc bdd_mux_abstract {bdd high low name {constants ""}} {
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
     set sigHigh [lindex $inputs 1]
     set sigLow [lindex $inputs 2]
 
+    if {[is_const $constants $bdd]} {
+        puts "a>>>>>>>>>>>>>>> $bdd <<<<<<<<<<<<<<<<<< $constants"
+        set t [transitive_simulate $bdd]
+        return [list [list $t $high $low]]
+    }
+
     set mux_type [bdd_mux_type $bdd]
+
+    puts "type: $mux_type"
 
     if {$mux_type == "mux_wire"} {
         # then pass everything through to the switching signal
-        return [bdd_abstract $var $high $low $name]
+        return [bdd_abstract $var $high $low $name $constants]
     } elseif {$mux_type == "mux_invert"} {
-        return [bdd_abstract $var $low $high $name]
+        return [bdd_abstract $var $low $high $name $constants]
     } elseif {$mux_type == "mux_const"} {
         error "mux_const hit! this shouldn't happen if the bdd is reduced and it's unclear what to do here"
     } elseif {$mux_type == "mux_full"} {
         set x_name [lindex [make_unique_names $name 1] 0]
         set x [VAR $x_name]
-        set var_ab [bdd_abstract $var [AND [OR $high $low] $x] [AND [OR $high $low] [NOT $x]] $x_name]
-        set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low] $x_name]
-        set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low] $x_name]
 
-        # return [AND [IMPL $var_ab $sigHigh_ab] [IMPL [NOT $var_ab] $sigHigh_ab]]
+        # handle fconstants on the switching input
+        if {[is_const $constants $var]} {
+            set x [transitive_simulate $var]
+            set var_ab ""
+        } else {
+            set var_ab [bdd_abstract $var [AND [OR $high $low] $x] [AND [OR $high $low] [NOT $x]] $x_name $constants]
+        }
+
+        # due to the variable ordering condition, it's impossible for these to be fconstants when sig is not
+        # so we can in particular ignore the case where both are fconstant and the switching input is not
+        # furthermore it's impossible for all three to be fconstant; that would be covered by the base case at the top of the function
+        # so we need only handle the case where either none, or exactly one is fconstant
+
+        if {![is_const $constants $sigHigh]} {
+            set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low] $x_name $constants]
+        } else {
+            set sigHigh_ab [list [list [transitive_simulate $sigHigh] [AND $x $high] [AND $x $low]]]
+        }
+
+        if {![is_const $constants $sigLow]} {
+            set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low] $x_name $constants]
+        } else {
+            set sigLow_ab [list [list [transitive_simulate $sigLow] [AND [NOT $x] $high] [AND [NOT $x] $low]]]
+        }
+        
         return [list_union [list_union $var_ab $sigHigh_ab] $sigLow_ab]
+
+
     } elseif {$mux_type == "mux_one"} {
-        # if one of the inputs is constant, then the mux reduces down to a single AND gate with some inversions
+        # if one of the inputs is terminal, then the mux reduces down to a single AND gate with some inversions
    
 
         set invert_list [bdd_mux_one_type $bdd]
@@ -277,7 +338,12 @@ proc bdd_mux_abstract {bdd high low name {constants [list]}} {
         set invert_sw [lindex $invert_list 1]
         set invert_in [lindex $invert_list 2]
 
-        set and_operands [find_big_ands $bdd $invert_out]
+        set and_operands_raw [find_big_ands $bdd $invert_out $constants]
+        set and_operands_pair [separate_and_signals $and_operands_raw $constants]
+        set and_operands_const [lindex $and_operands_pair 0]
+        set and_const_combined [check_symsim -expression -and $and_operands_const]
+        set and_operands [lindex $and_operands_pair 1]
+
         set and_cases [get_case_exprs [llength $and_operands] $name]
         set and_names [make_unique_names $name [llength $and_operands]]
 
@@ -294,17 +360,19 @@ proc bdd_mux_abstract {bdd high low name {constants [list]}} {
             set and_names [make_same_names $name [llength $and_operands]]
         }
 
-
-        # TODO add the names optimisation hereS
-        set result [list]
+        if {$and_const_combined eq [TRUE]} {
+            set result [list]
+        } else {
+            set result [list [list $and_const_combined $high [FALSE]]]
+        }
         foreach op $and_operands case $and_cases x_name $and_names {
             set next_sig [lindex $op 0]
             set invert [lindex $op 1]
 
             if {$invert} {
-                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp $case] $high_temp $x_name]]
+                set result [list_union $result [bdd_abstract $next_sig [AND $low_temp [AND $case $and_const_combined]] $high_temp $x_name $constants]]
             } else {
-                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp $case] $x_name]]
+                set result [list_union $result [bdd_abstract $next_sig $high_temp [AND $low_temp [AND $case $and_const_combined]] $x_name $constants]]
             }
         }
 
@@ -318,9 +386,10 @@ proc bdd_mux_abstract {bdd high low name {constants [list]}} {
 # for now just convert the signal to a bdd and use the above mux_abstract
 # but this shall have more in it when / if we want to implement non-combinatorial components
 # returns an _abstraction list_ of triples (node, high, low)
-proc bdd_abstract {sig high low name {constants [list]}} {
-    puts "abstracting $sig $high $low"
+proc bdd_abstract {sig high low name {constants ""}} {
+    puts "abstracting $sig $high $low // $constants"
     
+
     # quick continue if we somehow get passed a bdd node
     # FIXME can wire names be purely digits? i doubt it but good to check
     if {[string is digit $sig]} {
@@ -328,14 +397,14 @@ proc bdd_abstract {sig high low name {constants [list]}} {
     }
 
     if {[is_subset [freevars $sig] $constants]} {
-        # TODO transitive simulate
-        set t [VAR c_$sig]
+        puts ">>>>>>>>>>>>>>>> $sig <<<<<<<<<<<<<<<<<< $constants"
+        set t [transitive_simulate $sig]
         return [list [list $t $high $low]]
     }
 
 
     if {[is_VAR $sig]} {
-        set t [VAR v_$sig]
+        set t [VAR $sig]
         return [list [list $t $high $low]]
     }
 
@@ -345,7 +414,10 @@ proc bdd_abstract {sig high low name {constants [list]}} {
 }
 
 # main abstraction entry point
-proc autoabstract {sig high low {constants [list]}} {
+proc autoabstract {sig high low {constants ""}} {
+
+    # find the total area of the circuit covered by constants
+    set constants [forward_prop $constants]
     
     # force any symbolic constants to appear as first in any BDDs
     # this means we cannot have situations where a MUX gate has a constant on a signalling wire but not a switching one
@@ -357,6 +429,7 @@ proc autoabstract {sig high low {constants [list]}} {
         # the current ordering will be maintained, which is contrary to our goal of ensuring our constants are first
         check_symsim -var_order -set [list H2 H1]
         check_symsim -var_order -set $constants
+        puts [check_symsim -var_order -get]
     }
 
     return [bdd_abstract $sig $high $low x $constants]
@@ -383,4 +456,27 @@ proc get_abs_vars {abs} {
         set vars [list_union $vars [check_symsim -expression -depends [lindex $ab 2]]]
     }
     return $vars
+}
+
+# simplifies an abstraction list, compressing multiple guards for a certain wire into one
+proc simplify_abs_list {abs} {
+    set new_abs [dict create]
+    foreach ab $abs {
+
+        if {[dict exists $new_abs [lindex $ab 0]]} {
+            set existing [dict get $new_abs [lindex $ab 0]]
+            set high [OR [lindex $existing 0] [lindex $ab 1]]
+            set low [OR [lindex $existing 1] [lindex $ab 2]]
+            dict set new_abs [lindex $ab 0] [list $high $low]
+        } else {
+            dict set new_abs [lindex $ab 0] [list [lindex $ab 1] [lindex $ab 2]]
+        }
+    }
+
+    set result [list]
+    dict for {k v} $new_abs {
+        lappend result [list $k [lindex $v 0] [lindex $v 1]]
+    }
+
+    return $result
 }
