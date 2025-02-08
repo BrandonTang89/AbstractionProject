@@ -47,7 +47,7 @@
 # ]
 #
 # =====================================================================
-set DATA_WIDTH 2; # log d
+set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
@@ -74,7 +74,8 @@ set signals [check_symsim -model $model_id -list signal]
 
 # == Set up property to check ==
 set properties [dict create \
-    spec.assert_hit_signal 4 \
+    spec.assert_hit 4 \
+    spec.assert_next_hit 2 \
 ]
 
 set max_property_tick [max_dict_values $properties]

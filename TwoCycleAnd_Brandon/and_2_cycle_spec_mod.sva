@@ -42,6 +42,10 @@ and_correct:
   assert property
     (##2 property_and_correct);
 
+// Special Case for Param
+special_case:
+  assert property
+    (##2 (o == (a_past_1 & b_past_1 & a_past_2 & b_past_2)));
 
 endmodule // and_spec
 

@@ -205,11 +205,11 @@ We can prove that the counter example analysis for negative properties is correc
 == Converting Relational Constraints to Functional Constraints
 Traditionally STE only deals with functional properties. However, we can employ a trick to also check relational properties. 
 
-Our relational properties are initially written as SytemVerilog assertions. We observe that each SV assertion can have its logic be shifted out of the property and into the surrounding specification circuit. 
+Our relational properties are initially written as SytemVerilog assertions. When these assertions are loaded into Jasper Gold, they can be treated as pseudo-signals. Jasper Gold internally treats these properties as additional circuitary that is added onto the specification circuit and has an output signal that corresponds to the correctness of the property at each time.#footnote([We can view the simulated values of these pseudo-wires with `check_symsim -sequence $eval_seq -get $assertions -verbose`.])
 
-This means that we only need to check properties that are of the form `##k signal_name` where $k$ is the number of clock cycles required to establish a certain property and `signal_name` is the name of the signal that corresponds to the property being true. We will call this signal, the "*property wire*" as its truth value reflects the truth value of the property.
+This means that for us, we can treat these properties as functional properties that just correspond to checking if the pseudo-wire is true. We call this pseudo-wire as the "*property wire*".
 
-Properties of this form are actually functional properties and thus can be written in the above 4 tupe form easily as `cout = [(signal_name, k:k, TRUE, FALSE)]`. We can prove this for $k$ and then use the time shift to prove the rest of of the ticks > $k$.
+Properties of this form are actually functional properties and thus can be written in the above 4 tupe form easily as `cout = [(property_wire, k:k, TRUE, FALSE)]`. We can prove this for $k$ and then use the time shift to prove the rest of of the ticks > $k$. We choose $k$ such that $k$ is the first tick in which we can prove the property to be true.
 
 === Indexing Transformations for Relational Properties
 An additional benefit from this encoding method is that the property guards are extremely simple and thus have some nice properties related to the indexing transformation.
@@ -228,6 +228,15 @@ The 2nd equality comes from the fact that we take the strong preimage of the ant
 So any time $L$ is not false, we have found a counter example.
 Specifically, any $T, C$ in $im(L, R)$ is a counter example. 
 
+=== Simplifying Properties for Automatic Abstraction
+While we don't need any special form of properties with a manually crafted indexing relation, doing so can be very helpful for doing automatic abstraction. While the traditional way of doing abstraction works by forming the abstractions on all outputs of the specification circuit, we can sometimes derive better results by performing the abstraction algorithm directly from the wire that represents the property. 
+
+To assist with this process, we observe that each SV assertion can have its logic be shifted out of the property and into the surrounding specification circuit. 
+
+This means that we only need to check properties that are of the form `##k signal_name` where $k$ is the number of clock cycles required to establish a certain property and `signal_name` is the name of the signal that corresponds to the property being true. 
+
+Since this signal is a real signal is jasper gold (as compared to the property wire), we can then run the automatic abstraction algorithm directly from this wire to find the indexing relation that will cover all the cases where the property wire is true. 
+
 == Automatic Abstraction
 The original automatic abstraction algorithm from 2007 performed a recursive back propagation from the functional output of the specification to automatically create an indexing relation. By calling `bp(C, specOutput, x_0, not x_0, name)`, we would produce an abstraction that considered all the cases that caused the `specOutput` to be `true` or `false`, while keeping all the signals in `C` as symbolic constants.
 
@@ -237,13 +246,21 @@ The cost savings of the indexing relation came from only using 1 BDD variable on
 
 This has been reimplemented and improved.
 
+=== Application onto Circuits or Specifications
+The traditional way of applying the automatic abstraction algorithm is to run it on the output of the specification circuit. This should produce an indexing relation that covers all cases that cause the output of the specification to either be true or false.
+
+=== Application onto Property Wires
+Another way we can use this is to specifically look at all possible cases that are required for a property to be true and ensure that we abstract over them in a manner that we can prove the property being true. This leads us to running the automatic abstraction algorithm on the property wire itself.
+
 Since we are looking specifically at properties of the form "the property wire is true", we don't need to be concerned with considering any indexing case where the property wire is false (because there shouldn't be any). This means that we should run 
 
 #align(center)[
   `bp(C, property_wire, TRUE, FALSE, name)`
 ]
 
-To generate the required indexing relation.
+To generate the required indexing relation. 
+
+For this to work, the property wire must be (represented by) a real Jasper Gold wire, which can be done by shifting the logic for the property wire out of the property and into the surrounding circuit as described above.
 
 === Partitioned Abstraction Preimage
 The automatic abstraction algorithm used here produces a partitioned abstraction of the form 

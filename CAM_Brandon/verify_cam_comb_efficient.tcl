@@ -30,7 +30,8 @@ set signals [check_symsim -model $model_id -list signal]
 
 # == Set up property to check ==
 set properties [dict create \
-    spec.assert_next_hit_signal 2 \
+    spec.assert_hit 4 \
+    spec.assert_next_hit 2 \
 ]
 
 set max_property_tick [max_dict_values $properties]
