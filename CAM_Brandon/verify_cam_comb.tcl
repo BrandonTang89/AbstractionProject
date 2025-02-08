@@ -2,8 +2,8 @@
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
 # Doesn't use the efficient preimage computation (yet)
 # =====================================================================
-set DATA_WIDTH 1; # log d
-set ADDR_WIDTH 2; # log n
+set DATA_WIDTH 2; # log d
+set ADDR_WIDTH 3; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
@@ -11,7 +11,7 @@ clear -all
 analyze -sv cam.sv
 analyze -sva cam_spec.sva
 analyze -sv bind_cam.sv
-elaborate -top cam_top -loop_limit 100000
+elaborate -top cam_top -parameter DATA_LENGTH $DATA_LENGTH -parameter ADDR_WIDTH $ADDR_WIDTH -loop_limit 100000
 clock -both_edges clk
 reset -none
 
@@ -50,19 +50,12 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
-# === Create indexing relation === 
-# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] {"query\[0\]" "query\[1\]"}]
+# === Create indexing relation ===
 set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] ]
-
-# Rename the abstraction
-set inputs [check_symsim -model $model_id -list input]
 set index_rel [combine_abstractions $partition_abstraction]
 
 check_symsim -expression -depends $index_rel 
 PR $index_rel
-
-domain_non_partitioned $index_rel $bdd_variables
-
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli

@@ -11,3 +11,11 @@ Any more entries and it seems like parsing (but not proving) is the main limitin
 - `verify_cam.tcl`: Proof without using symbolic simulation
 - `simulate_noabs.tcl`: Does a fully running rSTE proof with no abstraction.
 - `simulate_manual_index.tcl`: Fully running rSTE proof of the CAM with manually crafted indexing relation.
+- `verify_cam_comb.tcl`: rSTE proof with automatic indexing, no symbolic constants
+- `verify_cam_comb_efficient.tcl`: rSTE proof with automatic indexing, efficient preimage, no symbolic constants
+- `verify_symbolic_constants.tcl`: rSTE proof with automatic indexing, efficient preimage, symbolic constants
+
+## Results
+The use of efficient preimage computations is actually fairly invaluable in scaling to larger CAM sizes. The manual indexing can only really do up to 4 CAM entries, each 4 bits wide. The bottle neck is actually the computation of the indexing relation as a symsim expression. This issue is also seen in other files that don't make use of the efficient preimage computation.
+
+For files that use the efficient preimage computation, the bottle neck becomes the automatic indexing algorithm.
