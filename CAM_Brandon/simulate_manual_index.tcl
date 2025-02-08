@@ -80,6 +80,7 @@ set properties [dict create \
 set max_property_tick [max_dict_values $properties]
 
 # === Set up Antecedent ===
+# We don't need to stimulate on tick 4, leave it as Xs
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
