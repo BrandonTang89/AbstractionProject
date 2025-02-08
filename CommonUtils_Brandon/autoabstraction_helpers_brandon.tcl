@@ -103,9 +103,7 @@ proc weak_preimage_part {abstraction_T domain predicate target_vars} {
 }
 
 proc strong_preimage_part {abstraction_T domain predicate target_vars} {
-    # Domain conjuct should not be necessary
-    # return [AND $domain [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]]
-    return [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]
+    return [AND $domain [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]]
 }
 
 proc apply_preimage_part {preimage_part_func stimuli_dict abstraction_T domain target_variables} {

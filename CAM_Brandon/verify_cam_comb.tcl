@@ -51,7 +51,8 @@ set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
 # === Create indexing relation === 
-set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] {"query\[0\]" "query\[1\]"}]
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] {"query\[0\]" "query\[1\]"}]
+set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] ]
 
 # Rename the abstraction
 set inputs [check_symsim -model $model_id -list input]
