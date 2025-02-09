@@ -187,3 +187,52 @@ proc rename_partition_abstraction {partition_abstraction inputs} {
 
     return $substituted_abstraction
 }
+
+
+#######################################
+# Check coverage
+# Returns true iff the abstraction satisfies the coverage property
+#######################################
+proc satisfiesCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}} {
+    if {$care_pred eq ""} {
+        set care_pred [TRUE]
+    }
+
+    puts "Target vars: $target_vars"
+    puts "Symbolic consts: $symbolic_consts"
+    puts "Care pred: $care_pred"
+
+    set all_vars [check_symsim -expression -depends $idx_rel]
+    set index_vars [difference $all_vars $target_vars]
+    set index_vars [difference $index_vars $symbolic_consts]
+
+    puts "Index vars: $index_vars"
+
+    if {$symbolic_consts eq ""} {
+        set expr [
+            FORALL_QUANT $target_vars [
+                IMPLIES $care_pred [
+                    EXISTS_QUANT $index_vars $idx_rel
+                ]
+            ]
+        ]
+    } else {
+        set expr [
+            FORALL_QUANT $symbolic_consts [
+                FORALL_QUANT $target_vars [
+                    IMPLIES $care_pred [
+                        EXISTS_QUANT $index_vars $idx_rel
+                    ]
+                ]
+            ]
+        ]
+    }
+
+    return $expr
+}
+
+
+proc satisfiesCoveragePartitioned {partition_abstraction target_vars {symbolic_consts ""} {care_pred ""}} {
+    set index_rel [combine_abstractions $partition_abstraction]
+    return [satisfiesCoverage $index_rel $target_vars $symbolic_consts $care_pred]
+}

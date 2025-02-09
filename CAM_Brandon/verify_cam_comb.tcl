@@ -1,8 +1,12 @@
 # =====================================================================
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
-# Doesn't use the efficient preimage computation (yet)
+# Doesn't use the efficient preimage computation
+# Doesn't make use of symbolic constants
+
+# Abstraction from the wire doesn't satisfy the coverage condition
+# Abstraction from the output next_hit wire leads to over abstraction
 # =====================================================================
-set DATA_WIDTH 2; # log d
+set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
@@ -52,8 +56,13 @@ set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
 # === Create indexing relation ===
-set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] ]
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [VAR t0] [NOT [VAR t0]]]
+set partition_abstraction [autoabstract next_hit [VAR t0] [NOT [VAR t0]]]
 set index_rel [combine_abstractions $partition_abstraction]
+
+# Check coverage
+set coverage [satisfiesCoverage $index_rel $bdd_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 check_symsim -expression -depends $index_rel 
 PR $index_rel

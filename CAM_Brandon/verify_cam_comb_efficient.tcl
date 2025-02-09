@@ -51,8 +51,11 @@ set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
 # === Create indexing relation === 
-# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] {"query\[0\]" "query\[1\]"}]
-set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] ]
+set partition_abstraction [autoabstract next_hit [VAR t0] [NOT [VAR t0]]]
+
+# Check coverage
+# set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables]
+# assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
 set abstraction_S [lindex $normal_abstraction 0]

@@ -15,10 +15,11 @@ Any more entries and it seems like parsing (but not proving) is the main limitin
 - `verify_cam_comb_efficient.tcl`: rSTE proof with automatic indexing, efficient preimage, no symbolic constants
 - `verify_symbolic_constants.tcl`: rSTE proof with automatic indexing, efficient preimage, symbolic constants
     - Verification can be done either by doing the automatic abstraction on
-        - the property wire with or without any symbolic constants
         - the next_hit wire with query as the symbolic constant
         - the spec.found wire with query as the symbolic constant
         - Similar to in the 2007 paper, without the symbolic constants, we get over abstraction if we do abstraction over the circuit.
+    - If we do the abstraction from the property wire, we end up losing coverage.
+        - This might might be fixed when the automatic abstraction incorporates DAG/multiple fan-out
 
 ## Results
 The use of efficient preimage computations is actually fairly invaluable in scaling to larger CAM sizes. The manual indexing can only really do up to 4 CAM entries, each 4 bits wide. The bottle neck is actually the computation of the indexing relation as a symsim expression. This issue is also seen in other files that don't make use of the efficient preimage computation.

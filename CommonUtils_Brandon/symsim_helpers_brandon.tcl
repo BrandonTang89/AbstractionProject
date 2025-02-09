@@ -8,7 +8,7 @@ proc XOR {a b} { check_symsim -expression -xor $a $b }
 proc XNOR {a b} { check_symsim -expression -xnor $a $b }
 proc IMPLIES {a b} { check_symsim -expression -implies $a $b }
 proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quantify $expression $tvariables }
-
+proc FORALL_QUANT {tvariables expression} { check_symsim -expression -forall_quantify $expression $tvariables }
 
 #######################################
 # Analogue of create_antecedent for dual rail signals

@@ -1,7 +1,7 @@
 # =====================================================================
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
 # =====================================================================
-set DATA_WIDTH 2; # log d
+set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
@@ -54,14 +54,19 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $ant_mem]
 set query_variables [get_dual_rail_antecedent_variable_names $ant_query]
 
 # === Create indexing relation === 
-set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] $query_variables]
-# set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]] $query_variables]
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] $query_variables]
+set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]] $query_variables]
 # set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
 
 ## No Symbolic Constants
 # set bdd_variables [get_dual_rail_antecedent_variable_names $antv] 
 # set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE]]
 # set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]]]
+
+# Check coverage
+set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables $query_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
+
 
 set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
 set abstraction_S [lindex $normal_abstraction 0]

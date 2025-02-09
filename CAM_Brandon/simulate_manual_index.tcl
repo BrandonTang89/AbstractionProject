@@ -197,6 +197,9 @@ set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make
 check_symsim -expression -depends $index_rel
 PR $index_rel
 
+# Check coverage
+set coverage [satisfiesCoverage $index_rel $bdd_variables]
+
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli

@@ -46,8 +46,9 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 # We only need to auto abstract on the property_wire being TRUE (it is a waste to do it on FALSE)
 set partition_abstraction [autoabstract spec.property_wire [TRUE] [FALSE] []]
 
-# Rename the abstraction
-set partition_abstraction [rename_partition_abstraction $partition_abstraction $bdd_variables]
+# Check coverage
+set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
 set abstraction_S [lindex $normal_abstraction 0]

@@ -80,6 +80,10 @@ set index_rel [check_symsim -expression -canonize $index_rel]
 check_symsim -expression -depends $index_rel
 PR $index_rel
 
+# Check Coverage
+set coverage [satisfiesCoverage $index_rel $bdd_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
+
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
 set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]

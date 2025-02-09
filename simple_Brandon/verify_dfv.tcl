@@ -45,12 +45,17 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 # == Automatic Abstraction ==
 # We only need to auto abstract on the property_wire being TRUE (it is a waste to do it on FALSE)
 set partition_abstraction [autoabstract spec.property_wire [TRUE] [FALSE] []]
+set partition_abstraction [autoabstract o [VAR t0] [NOT [VAR t0]] []]
 
 # Rename the abstraction
 set inputs [check_symsim -model $model_id -list input]
 set partition_abstraction [rename_partition_abstraction $partition_abstraction $inputs]
 
 set index_rel [combine_abstractions $partition_abstraction]
+
+# Check coverage
+set coverage [satisfiesCoverage $index_rel $bdd_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
