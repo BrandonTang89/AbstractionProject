@@ -49,7 +49,7 @@ proc simulate_unit {sig cut_points} {
 
 }
 
-proc transitive_simulate {bdd cut_points} {
+proc transitive_simulate {bdd {cut_points ""}} {
     if {![string is digit $bdd]} {
         # then we're dealing with a signal, rather than a BDD!
 
@@ -245,7 +245,8 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
 
     if {[is_const $constants $bdd]} {
         puts "a>>>>>>>>>>>>>>> $bdd <<<<<<<<<<<<<<<<<< $constants $cut_points"
-        set t [transitive_simulate $bdd $cut_points]
+        # ignore cut points for this transitive simulation, since we want to cross boundaries here
+        set t [transitive_simulate $bdd]
         return [list [list $t $high $low]]
     }
 
@@ -266,7 +267,7 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
 
         # handle fconstants on the switching input
         if {[is_const $constants $var]} {
-            set x [transitive_simulate $var $cut_points]
+            set x [transitive_simulate $var]
             set var_ab ""
         } else {
             set var_ab [bdd_abstract $var [AND [OR $high $low] $x] [AND [OR $high $low] [NOT $x]] $x_name $constants $cut_points]
@@ -280,13 +281,13 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
         if {![is_const $constants $sigHigh]} {
             set sigHigh_ab [bdd_mux_abstract $sigHigh [AND $x $high] [AND $x $low] $x_name $constants $cut_points]
         } else {
-            set sigHigh_ab [list [list [transitive_simulate $sigHigh $cut_points] [AND $x $high] [AND $x $low]]]
+            set sigHigh_ab [list [list [transitive_simulate $sigHigh] [AND $x $high] [AND $x $low]]]
         }
 
         if {![is_const $constants $sigLow]} {
             set sigLow_ab [bdd_mux_abstract $sigLow [AND [NOT $x] $high] [AND [NOT $x] $low] $x_name $constants $cut_points]
         } else {
-            set sigLow_ab [list [list [transitive_simulate $sigLow $cut_points] [AND [NOT $x] $high] [AND [NOT $x] $low]]]
+            set sigLow_ab [list [list [transitive_simulate $sigLow] [AND [NOT $x] $high] [AND [NOT $x] $low]]]
         }
         
         return [list_union [list_union $var_ab $sigHigh_ab] $sigLow_ab]
@@ -363,7 +364,7 @@ proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
 
     if {[is_subset [freevars $sig] $constants]} {
         puts ">>>>>>>>>>>>>>>> $sig <<<<<<<<<<<<<<<<<< $constants $cut_points"
-        set t [transitive_simulate $sig $cut_points]
+        set t [transitive_simulate $sig]
         return [list [list $t $high $low]]
     }
 
