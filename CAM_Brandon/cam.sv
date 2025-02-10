@@ -9,9 +9,11 @@ module cam_top #(
     parameter ADDR_WIDTH = 2    // Width of the address bus (this means that the CAM stores 2^ADDR_WIDTH entries)
 )(
     input logic clk,                       // Clock signal
-    input logic [DATA_LENGTH-1:0] query,    // Value to check bus
+    input logic q01, q02, q11, q12,
     output logic hit                       // Hit signal (true if data is found, 1 cycle after trigger)
 );
+
+    logic [DATA_LENGTH-1:0] query;    // Value to check bus
 
     // Memory array
     logic [DATA_LENGTH-1:0] mem [(2**ADDR_WIDTH)-1:0];
@@ -33,5 +35,8 @@ module cam_top #(
     always_ff @(posedge clk) begin
         hit <= |match;  // Set hit if any match is found
     end
+
+    assign query[0] = q01 & q02;
+    assign query[1] = q11 & q12;
 
 endmodule
