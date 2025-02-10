@@ -2,7 +2,7 @@
 
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
 variable baseDir [file dirname [file normalize [info script]]]
-source [file join $baseDir auto_abstract.tcl]
+source [file join $baseDir utils.tcl]
 
 set BASE x
 
@@ -63,10 +63,4 @@ proc merge_cases {cases} {
     set right [lpop cases]
     lappend cases [OR $left $right]
     return $cases
-}
-
-# Take the union of two lists, removing duplicates
-# https://stackoverflow.com/a/42959687
-proc list_union {list1 list2} {
-    return [lsort -unique [list {*}$list1 {*}$list2]]
 }
