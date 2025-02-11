@@ -173,3 +173,8 @@ proc get_fanout_points {sig} {
 
     return $results
 }
+
+
+proc trim {s} {
+    return [string range $s 1 [expr [string length $s] - 2]]
+}

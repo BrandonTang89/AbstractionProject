@@ -401,6 +401,74 @@ proc autoabstract {sig high low {constants ""}} {
         puts [check_symsim -var_order -get]
     }
 
-    return [bdd_abstract $sig $high $low x $constants $cut_points]
+    set initial_abstraction [bdd_abstract $sig $high $low x $constants $cut_points]
+
+    set abstractions [dict create]
+
+    foreach cut_point $cut_points {
+        
+        # remove the current cut point from the list, so the abstraction algorithm doesn't immediately halt
+        set i [lsearch -exact $cut_points $cut_point]
+        set cut_points_without [lreplace $cut_points $i $i]
+
+        puts ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> TOPLEVEL ABSTRACTING $cut_point // $cut_points_without"
+        # run the abstraction for the cut point, using new base names $cut_point\_x for uniqueness.
+        dict set abstractions [VAR $cut_point] [bdd_abstract $cut_point [VAR vh_$cut_point] [VAR vl_$cut_point] $cut_point\_x $constants $cut_points_without]
+        PRR [dict get $abstractions [VAR $cut_point]]
+    }
+
+    # now we need to merge all the sets of triples in the abstractions dict. 
+    # starting with the initial one, we look for wires that are represented in the dict, do the substitution, and merge them in
+    # note that everything is simplified, because we only want to deal with single triples for each substitution
+    set changed true
+    set result $initial_abstraction
+
+    puts "Final step: Merging"
+
+    while {$changed} {
+        set changed false 
+        set result [simplify_abs_list $result]
+
+        foreach ab $result {
+            set ab_var [lindex $ab 0]
+            set h_v [lindex $ab 1]
+            set l_v [lindex $ab 2]
+
+            
+
+            if {[dict exists $abstractions $ab_var]} {
+                puts "> Merging abstraction for [PR $ab_var]"
+                set T_O [dict get $abstractions $ab_var]
+                set T_O_updated [list]
+
+                set abstractions [dict remove $abstractions $ab_var]
+
+                foreach triple $T_O {
+                    set replaced_var [lindex $triple 0]
+                    set high [lindex $triple 1]
+                    set low [lindex $triple 2]
+                    puts ">> Substituting through [PR $replaced_var]"
+
+                    set subs [dict create vh_[trim [PR $ab_var]] $h_v vl_[trim [PR $ab_var]] $l_v ]
+                    
+
+                    set high [check_symsim -expression -substitute $high $subs]
+                    set low [check_symsim -expression -substitute $low $subs]
+
+                    lappend T_0_updated [list $replaced_var $high $low]
+                }
+
+
+                set result [list_union $result $T_0_updated]
+
+                # break out of the loop because we need to do another simplification step
+                # and mutating the loop we're iterating over could lead to strange states
+                set changed true
+                break
+            }
+        }
+    } 
+
+    return $result
 
 }

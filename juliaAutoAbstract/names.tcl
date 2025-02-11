@@ -24,7 +24,6 @@ proc make_same_names {base n} {
 
 # creates fresh boolean variables for at least n cases, and returns those cases
 proc get_case_exprs {n name} {
-    puts "CASES! $n $name"
     set case_names [make_unique_names $name $n]
     return [lrange [get_case_exprs_rec $n $n $case_names] 0 [expr {$n - 1}]]
 }
