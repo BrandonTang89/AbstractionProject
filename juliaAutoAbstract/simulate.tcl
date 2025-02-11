@@ -26,7 +26,7 @@ proc simulate_unit {sig cut_points} {
     set low_rail [lindex $behavior_rails 1]
 
     # workaround for bug where inspecting the rails will fail
-    # unless they've been used somewhere else first
+    # unless they've been evaluated somewhere else first
     AND $high_rail [VAR x]
     AND $low_rail [VAR x]
 

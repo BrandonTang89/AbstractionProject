@@ -176,5 +176,6 @@ proc get_fanout_points {sig} {
 
 
 proc trim {s} {
+    if {[string first \{ $s] != 0} { return $s }
     return [string range $s 1 [expr [string length $s] - 2]]
 }
