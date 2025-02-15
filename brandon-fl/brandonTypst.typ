@@ -88,7 +88,7 @@ Observe that
 - The strong preimage is the set of $X, C$ that fall into the 1st category.
 
 We can note that the following are then also equivalent definitions of the strong preimage operation:
-$ P^R [X, C] &= dom(R) and overline(overline(P)^R) \
+$ P^R [X, C] &= dom(R) and overline(overline(P)_R) \
       &= dom(R) and (forall T (R[X, C, T] -> P[C, T])) $
 
 === Indexing Coverage Condition
@@ -337,12 +337,27 @@ The $P = overline(t_i)$ case is analagous to the above.
 == Checking Properties under Environmental Constraints
 Environmental constraints are constraints on the inputs to the circuit. They are of the form $P[C, T]$ to denote that we only need a constraint to hold if $P[C, T]$ is true. We call such a constraint a "care predicate".
 
-=== Index Over Care Predicate Cases
+=== Index Over Care Predicate Cases via Indexing Relation Restriction
 Notice that one easy way to include environmental constraints is to simply add them to the guards of the output constraint. We can then check for the property holding under the enviromental constraint as described above. 
 
-However, this can lead to problems for abstractions that merge cases covering $(C_1, T_1), (C_2, T_2)$ where $C_1, T_1 ent P$ but $C_2, T_2 nent P$. Specifically, are more likely to have weak disagreements as these cases cannot assume the environmental constraint holds. This is referenced to in the 2002 paper where it is recommended to find indexing relations that exactly index cases in $P$ and not any in $not P$. It is recommended to find an indexing relation specific to each particular constraint that avoids covering unnecessary cases not in $P$.
+However, this can lead to problems for abstractions that merge cases covering $(C_1, T_1), (C_2, T_2)$ where $C_1, T_1 ent P$ but $C_2, T_2 nent P$#footnote([Notably, if we don't use abstraction then this should work smoothly. Probably what Jasper Gold does with its recipies.]). Specifically, this is more likely to have weak disagreements as these cases cannot assume the environmental constraint holds. 
 
-Another way to mitigate the weak disagreements is to use the alternative checking method involving reversing the indexing, described earlier. This can avoid weak disagreements in some cases but can be more computationally expensive. This is especially true if we use the automatic abstraction algorithm since we cannot make use of the partitioned abstraction preimage.
+This is referenced to in the 2002 paper where it is recommended to find indexing relations that exactly index cases in $P$ and not any in $not P$.
+
+To get such an indexing relation, one straightforward idea is to have a new indexing relation that is the conjuction of the original indexing relation and the input constraint. This will ensure that the indexing relation only ever indexes target variable assignments satisfying the care predicate. However, this can still lead to weak disagreements from the indexing relation being too coarse. 
+
+Another way to mitigate the weak disagreements is to use the alternative checking method involving reversing the indexing, described earlier. This can avoid weak disagreements in some cases but can be more computationally expensive. 
+
+Given an indexing relation that only indexes the cases in $P$, we can just apply the symbolic indexing transformation on the antecedent, run the simulation and check the output constraints as described above. 
+
+==== Variation: Condition the Antecedent Rather than Restricting the Indexing Relation
+We note that doing the combining the above approach with the automatic abstraction would destroy the partitioned abstraction preimage structure, meaning we cannot directly apply the efficient preimage computations described above. 
+
+However, we can employ a similar strategy where we first modify each BDD expression $e$ in the antecedent to the form $(e and P) or overline(P) equiv P -> e$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $e$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants in the below image). We modify the guard of the output constraint to include $P$ and do the checking as described above. 
+
+Note that compared to when we don't have input constraints, doing this will potentially cause some signals to be $top$, but only when the indexing variable assignment indexes into both $P$ and $overline(P)$. This is actually alright, since neither $P^R$ nor $P_R$ will contain such cases, thus not affecting our output checking procedure (for either correctness or counter example analysis). Since the only indexing cases that we consider during analysis are those that index at least one case in $P$, this is equivalent to to restriction method described above.
+
+Since we are not modify the indexing relation, we can still use the partitioned abstraction preimage operations which are more efficient.
 
 === Parametric Encoding
 #let al = $angle.l$
@@ -355,7 +370,8 @@ An alternative approach would be to use a parametric encoding of the input const
 
 There are two ways to apply this for symbolic simulation.
 
-The first stategy is to apply the parametric encoding to transform an independently computed indexing relation. Given a circuit, antecedent, input and output constraints, we will
+==== Parametrise the Indexing Relation
+The first stategy is to apply the parametric encoding to transform an independently computed indexing relation. This is described in the 2002 paper. Given a circuit, antecedent, input and output constraints, we will
 - Compute `param` on the input constraints
 - Substitute each BDD variable in the antecedent with the corresponding function from the parametric encoding
 - Compute an indexing relation using the automatic abstraction algorithm
@@ -364,7 +380,13 @@ The first stategy is to apply the parametric encoding to transform an independen
 - Do the indexing transformation on the parameterised antecedent, and output constraints
 - Do the symbolic simulation and check whether the output constraint holds
 
-This is a sound approach. First we note that after we parameterise the antecedent, we still test all the cases $C, T$ such that $P[C, T]$ holds by the completeness of `param`. Secondly, we also have the parameterised indexing relation satisfying the coverage condition:
+This is a sound approach. 
+
+First we note that after we parameterise the antecedent, we still test all the cases $C, T$ such that $P[C, T]$ holds by the completeness of `param`. 
+
+We also note that the base case for our symbolic simulation invariant still holds even though our input signals are now functions of the parameterisation variables. In this case, we can imagine that we are doing symbolic simulation on a bigger circuit with the param functions bolted onto the front, feeding the inputs of the regular circuit. The input signals $s$ are now replaced with the param functions $f_s$ and our basecase argument will still hold.
+
+Furthermore, we also have the parameterised indexing relation satisfying the coverage condition:
 
 Assuming that the indexing relation $R[X, C, T]$ used satisfies the coverage condition $forall T forall C (P[C, T] -> exists X R[X, C, T])$ then the parameterised indexing relation $R'[X, C, T']$ will also satisfy the coverage condition, in terms of the new parameterisation variables, i.e. $forall T' forall C exists X R'[X, C, T']$ where $T'$ is the new parameterised input signals.
 
@@ -374,6 +396,27 @@ While this is sound, there are cases where doing the above will lead to a weak d
 
 Furthermore, this has the problem where the partitioned indexing relation structure is destroyed during the folding of the param substitutions into the indexing relation. This means that we cannot use the partitioned abstraction preimage to compute the preimage of a guard. This makes it computationally infeasible to compute the preimages of the antecedents
 
-A second strategy using `param` involves doing the parameterisation first and then doing the automatic abstraction on the circuit with the param functions "bolted" onto the front of the circuit as if the original circuit was just in terms of the parameterisation variables. 
+===== Relationship to Indexing Restriction Methods
+#image("paramed_indexing_rel.jpg")
 
-However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, it is possible to only apply param on the other input signals and leave the symbolic constants as is.
+With careful observation, we note that the indexing cases that are included in the strong preimage operation on the antecedent are actually the same whether we are using the above parametric encoding and substitution method or the previously descibred method of modifying the indexing relation to by conujucting it with the input constraint. In either case, we only consider the indexing cases that at least map to one target variable assignment that satisfies both the input constraint and the antecedent bdd variable, and doesn't index any cases that satisfy the input constraint and the logical not of the antecedent bdd variable.
+
+With further observation, the domain of the parameterised indexing relation is actually going to be the same as as the weak preimage of the input constraint under the original indexing relation. Both of them are going to the set of cases that index into at least one case that satisfies the input constraint. As such the output checks will be the same for both methods.
+
+This means that both methods are actually equivalent, i.e. will produce the same results (proven, disproven or unproven). 
+
+Since the first method present is equivalent to the more efficient variation, this parametric method is also equivalent to that. Given the better efficiency of the method of conditioning the antecedent, that is preferable in practice. 
+
+==== Parameterise Circuit then Perform Abstraction
+While the first strategy of using `param` is not any more effective than the restriction methods, our second strategy is likely to be more effective.
+
+We will do the parameterisation first and then do the automatic abstraction on the circuit with the param functions "bolted" onto the front of the circuit as if the original circuit was just in terms of the parameterisation variables. This will compute a new indexing relation that is not easily found as a modification of the non-parameterised indexing relation like we did in the first method(s).
+
+From here, since the automatic abstraction algorithm gives us coverage by construction, our new indexing relation will satisfy the coverage condition. It is thus sound to use it for symbolic indexing. We modify the antecedent with the parameterisation functions substituted for the original signals and then transform them via the strong preimage under the indexing relation. We then run the symbolic simulation and then just check the output constraint without any guards. Soundness comes from this effectively being symbolic simulation on a bigger circuit, with the modified base case argument still holding.
+
+The soundness of the above procedure can be seen mostly as the same as the regular symbolic simulation correctness. 
+
+However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, Jasper Gold allows us to apply param on the other input signals and leave the symbolic constants as is.
+
+=== Conditioned Output Constraints
+A last way we can deal with input constraints is to just build them into the SystemVerilog Assertions directly as conditions on the input signals to the circuit. This means that we don't need to do anything special at all when we run the symbolic simulation. However, if we are using the input constraints to case split on the possible inputs, we will need to programmtically modify the SystemVerilog Assertions since it would be impractical to do that manually for each environmental constraint
