@@ -83,3 +83,14 @@ proc intersect {list1 list2} {
     }
     return $result
 }
+
+# === Procedure to return the difference of two lists ===
+proc difference {list1 list2} {
+    set result {}
+    foreach item $list1 {
+        if {$item ni $list2} {
+            lappend result $item
+        }
+    }
+    return $result
+}

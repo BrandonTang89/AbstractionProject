@@ -1,31 +1,4 @@
 #######################################
-# Renames the variables in the partitioned abstraction to be consistent with create_dual_rail_antecedent
-#######################################
-proc rename_partition_abstraction {partition_abstraction inputs} {
-    set sub_dict [dict create]
-    foreach input $inputs {
-        dict set sub_dict "v_$input" [VAR $input]
-    }
-    
-    set substituted_abstraction []
-
-    foreach abstraction $partition_abstraction {
-        set var [lindex $abstraction 0]
-        set hexpr [lindex $abstraction 1]
-        set lexpr [lindex $abstraction 2]
-
-        set new_var [check_symsim -expression -substitute $var $sub_dict]
-        set new_hexpr [check_symsim -expression -substitute $hexpr $sub_dict]
-        set new_lexpr [check_symsim -expression -substitute $lexpr $sub_dict]
-
-        lappend substituted_abstraction [list $new_var $new_hexpr $new_lexpr]
-    }
-
-    return $substituted_abstraction
-}
-
-
-#######################################
 # Converts a partitioned abstraction [(TARGVAR/SymbolicConstBDD, highexpr, lowexpr)] into the form (S, T)
 # Takes the partitioned abstraction and a list of target_variables (as strings)
 # Where the indexing relation is S[xs, cs] and T[xs, ts]
@@ -130,9 +103,7 @@ proc weak_preimage_part {abstraction_T domain predicate target_vars} {
 }
 
 proc strong_preimage_part {abstraction_T domain predicate target_vars} {
-    # Domain conjuct should not be necessary
-    # return [AND $domain [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]]
-    return [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]
+    return [AND $domain [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]]
 }
 
 proc apply_preimage_part {preimage_part_func stimuli_dict abstraction_T domain target_variables} {
@@ -179,4 +150,89 @@ proc combine_abstractions {abstractions} {
         set combined_abstraction [AND $combined_abstraction [IMPLIES $lexpr [NOT $expr]]]
     }
     return $combined_abstraction
+}
+
+#######################################
+# Returns the domain of a non-partitioned abstraction
+# i.e. the used indexing cases
+# Should be TRUE if produced via automatic abstraction
+#######################################
+proc domain_non_partitioned {idx_rel target_vars} {
+    return [EXISTS_QUANT $target_vars $idx_rel]
+}
+
+#######################################
+# Renames the variables in the partitioned abstraction to be consistent with create_dual_rail_antecedent
+# No longer necessary with the latest names from automatic abstraction
+#######################################
+proc rename_partition_abstraction {partition_abstraction inputs} {
+    set sub_dict [dict create]
+    foreach input $inputs {
+        dict set sub_dict "v_$input" [VAR $input]
+    }
+    
+    set substituted_abstraction []
+
+    foreach abstraction $partition_abstraction {
+        set var [lindex $abstraction 0]
+        set hexpr [lindex $abstraction 1]
+        set lexpr [lindex $abstraction 2]
+
+        set new_var [check_symsim -expression -substitute $var $sub_dict]
+        set new_hexpr [check_symsim -expression -substitute $hexpr $sub_dict]
+        set new_lexpr [check_symsim -expression -substitute $lexpr $sub_dict]
+
+        lappend substituted_abstraction [list $new_var $new_hexpr $new_lexpr]
+    }
+
+    return $substituted_abstraction
+}
+
+
+#######################################
+# Check coverage
+# Returns true iff the abstraction satisfies the coverage property
+#######################################
+proc satisfiesCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}} {
+    if {$care_pred eq ""} {
+        set care_pred [TRUE]
+    }
+
+    puts "Target vars: $target_vars"
+    puts "Symbolic consts: $symbolic_consts"
+    puts "Care pred: $care_pred"
+
+    set all_vars [check_symsim -expression -depends $idx_rel]
+    set index_vars [difference $all_vars $target_vars]
+    set index_vars [difference $index_vars $symbolic_consts]
+
+    puts "Index vars: $index_vars"
+
+    if {$symbolic_consts eq ""} {
+        set expr [
+            FORALL_QUANT $target_vars [
+                IMPLIES $care_pred [
+                    EXISTS_QUANT $index_vars $idx_rel
+                ]
+            ]
+        ]
+    } else {
+        set expr [
+            FORALL_QUANT $symbolic_consts [
+                FORALL_QUANT $target_vars [
+                    IMPLIES $care_pred [
+                        EXISTS_QUANT $index_vars $idx_rel
+                    ]
+                ]
+            ]
+        ]
+    }
+
+    return $expr
+}
+
+
+proc satisfiesCoveragePartitioned {partition_abstraction target_vars {symbolic_consts ""} {care_pred ""}} {
+    set index_rel [combine_abstractions $partition_abstraction]
+    return [satisfiesCoverage $index_rel $target_vars $symbolic_consts $care_pred]
 }
