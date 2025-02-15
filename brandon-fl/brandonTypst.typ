@@ -345,8 +345,35 @@ However, this can lead to problems for abstractions that merge cases covering $(
 Another way to mitigate the weak disagreements is to use the alternative checking method involving reversing the indexing, described earlier. This can avoid weak disagreements in some cases but can be more computationally expensive. This is especially true if we use the automatic abstraction algorithm since we cannot make use of the partitioned abstraction preimage.
 
 === Parametric Encoding
-An alternative approach would be to use the `param` function to encode the care predicate into the indexing relation, the antecedent and the output constraints. Details in the 2002 paper.
+#let al = $angle.l$
+#let ar = $angle.r$
+An alternative approach would be to use a parametric encoding of the input constraints. A parametric encoding involvings using the `param` function to compute a substition of the input signals with new parameterisation variables.
 
-This has the problem where the partitioned indexing relation structure is destroyed during the folding of the param substitutions into the indexing relation.
+`param` takes a list of input constraints and a list of signals $s_1, s_2, ..., s_n$ and computes a vector of boolean functions $f_1, f_2, ..., f_n$ from new parameterisation variables $P = {p_1, ..., p_k}$ where $k <= n$ for the purpose of substituting $s_i := f_i (P)$. These functions satisfy the following two conditions:
+- (soundness): $forall P, al s_i := f_i(P) | i in 1..n ar$ satifies the input constraints 
+- (completeness): $forall al s_1, s_2, ..., s_n ar$  that satisfy the input constraints, there exists some $P$ such that $s_i = f_i (P)$ 
 
-An alternative similar strategy would involve doing the parameterisation first and then doing the automatic abstraction. However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, it is possible to only apply param on the other input signals and leave the symbolic constants as is.
+There are two ways to apply this for symbolic simulation.
+
+The first stategy is to apply the parametric encoding to transform an independently computed indexing relation. Given a circuit, antecedent, input and output constraints, we will
+- Compute `param` on the input constraints
+- Substitute each BDD variable in the antecedent with the corresponding function from the parametric encoding
+- Compute an indexing relation using the automatic abstraction algorithm
+- Substitute each BDD variable in the automatic abstraction result with the corresponding function from the parametric encoding
+- There is no need to substitute anything in the output constraint because the guards of the output constraint are just `true`
+- Do the indexing transformation on the parameterised antecedent, and output constraints
+- Do the symbolic simulation and check whether the output constraint holds
+
+This is a sound approach. First we note that after we parameterise the antecedent, we still test all the cases $C, T$ such that $P[C, T]$ holds by the completeness of `param`. Secondly, we also have the parameterised indexing relation satisfying the coverage condition:
+
+Assuming that the indexing relation $R[X, C, T]$ used satisfies the coverage condition $forall T forall C (P[C, T] -> exists X R[X, C, T])$ then the parameterised indexing relation $R'[X, C, T']$ will also satisfy the coverage condition, in terms of the new parameterisation variables, i.e. $forall T' forall C exists X R'[X, C, T']$ where $T'$ is the new parameterised input signals.
+
+Proof: Consider an arbitary but fixed $C, T'$. Let $T = f(T')$ where $f$ is the parametric encoding. We know that $P[C, T]$ is true due to the soundness of `param`. Now, by the fact that $forall T forall C (P[C, T] -> exists X R[X, C, T])$, we have that $exists X R[X, C, T]$. Let such $X\*$ be such that $R[X\*, C, T]$. We observe that $R'[X\*, C, T']$ will also hold since we have that $T = f(T')$ and $R' = R[T\/f(T')]$. 
+
+While this is sound, there are cases where doing the above will lead to a weak disagreement where the property is not proven but there are no counter examples.
+
+Furthermore, this has the problem where the partitioned indexing relation structure is destroyed during the folding of the param substitutions into the indexing relation. This means that we cannot use the partitioned abstraction preimage to compute the preimage of a guard. This makes it computationally infeasible to compute the preimages of the antecedents
+
+A second strategy using `param` involves doing the parameterisation first and then doing the automatic abstraction on the circuit with the param functions "bolted" onto the front of the circuit as if the original circuit was just in terms of the parameterisation variables. 
+
+However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, it is possible to only apply param on the other input signals and leave the symbolic constants as is.

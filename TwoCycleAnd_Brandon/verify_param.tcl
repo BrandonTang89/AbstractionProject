@@ -5,6 +5,7 @@ clear -all
 source ../CommonUtils_Brandon/symsim_utils.tcl
 source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
+source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
 analyze -sv and_2_cycles.sv
 analyze -sva and_2_cycle_spec_mod.sva
 analyze -sv bind_and_2_cycles.sv
@@ -13,7 +14,7 @@ clock -both_edges clk
 reset -none
 
 namespace import symsim::*
-set_symsim_expr_pretty_print_threshold 30
+set_symsim_expr_pretty_print_threshold 300
 
 # === Symsim Set Up ===
 set model_id [check_symsim -model -create]
@@ -74,26 +75,31 @@ PR $input_constraint
 set param_output [check_symsim -param -expressions [list $input_constraint] -exclude_symbols [list]]
 set param_res [dict get $param_output param_res]
 
-# TODO: figure out what is_sat_exprs really is
+# # TODO: figure out what is_sat_exprs really is
 assert [expr {[dict get $param_res is_sat_exprs] == 1}] "Parameterisation failed"
 
 set param_substitutions [lindex [dict get $param_res symb_subst] 0]
 proc rename_param_phase_0 {exp} {return [rename_param_variables $exp 0]}
 
-# We rename the substituted variables 
+# # We rename the substituted variables 
 set param_subs_renamed [dict_map $param_substitutions rename_param_phase_0]
 
-# == Apply parameterisation to the Antecedent and Indexing Relation ==
+# # == Apply parameterisation to the Antecedent and Indexing Relation ==
 set stimuli_paramed [apply_substitution_stim $antv $param_subs_renamed]
 set index_rel_paramed [check_symsim -expression -substitute $index_rel $param_subs_renamed]
+
+# set index_rel_paramed [AND $index_rel $input_constraint]
+
+# Check Coverage
+set coverage [satisfiesCoverage $index_rel_paramed $bdd_variables "" $input_constraint]
+set coverage [satisfiesCoverage $index_rel_paramed $bdd_variables]
+
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 
 # === Indexing Transformation ===
 set transformed_ant_stimuli [strong_preimage_stim $stimuli_paramed $index_rel_paramed $bdd_variables]
-
-# Comparing this with the ThreeWayAndGate_correct.fl transformed antecedent, it seems like the right form
-# Even though this transformed version is the same as that without the parameterisation
-
+# set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel_paramed $bdd_variables]
 
 # === Run the symbolic simulation ===
 set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
@@ -115,24 +121,11 @@ set eval_seq [dict get $eval_out sequence_id]
 check_symsim -sequence $eval_seq -get [list a b c o] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
-# Remains to transform the output_constraint (property to prove) with the paramed indexing relation
-# and verify that the the transformed property is satisfied
-
 # === Transformation of the property ===
-# With the modified property, we can perform the weak preimage transformation to get the transformed consequence
-# We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]  
-
-# prop_low should always be false
-# prop_high is the domain of the indexing relation, i.e. all abstraction cases that correspond to some target assignment
+set prop_low [weak_preimage $index_rel_paramed [FALSE] $bdd_variables]  
+set prop_high [weak_preimage $index_rel_paramed $input_constraint $bdd_variables] 
 
 PR $prop_high
 PR $prop_low
-
-# We then need to conclude whether the property is satisfied or not
-# for a property to be satisfied, both expressions of the property signal in the consequence should imply their respective symbolic simulation exprs
-# i.e. for all assignments A where A ent cons(high), we must have A ent sim(high)
-# and for all assignments A where A ent cons(low), we must have A ent sim(low)
 
 check_properties_against_sim $properties $eval_seq $prop_high $prop_low
