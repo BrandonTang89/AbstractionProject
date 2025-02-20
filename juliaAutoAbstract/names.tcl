@@ -2,7 +2,7 @@
 
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
 variable baseDir [file dirname [file normalize [info script]]]
-source [file join $baseDir auto_abstract.tcl]
+source [file join $baseDir utils.tcl]
 
 set BASE x
 
@@ -24,7 +24,6 @@ proc make_same_names {base n} {
 
 # creates fresh boolean variables for at least n cases, and returns those cases
 proc get_case_exprs {n name} {
-    puts "CASES! $n $name"
     set case_names [make_unique_names $name $n]
     return [lrange [get_case_exprs_rec $n $n $case_names] 0 [expr {$n - 1}]]
 }
@@ -63,10 +62,4 @@ proc merge_cases {cases} {
     set right [lpop cases]
     lappend cases [OR $left $right]
     return $cases
-}
-
-# Take the union of two lists, removing duplicates
-# https://stackoverflow.com/a/42959687
-proc list_union {list1 list2} {
-    return [lsort -unique [list {*}$list1 {*}$list2]]
 }

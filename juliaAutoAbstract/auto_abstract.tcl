@@ -83,7 +83,7 @@ proc make_unique_names {name n} {
 }
 
 # TODO work for more than one AND
-proc find_big_ands {sig C} {
+proc _find_big_ands {sig C} {
     set is [destruct_AND $sig]
     set cis [list]
     set oinps [list]

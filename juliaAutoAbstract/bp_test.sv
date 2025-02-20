@@ -9,12 +9,12 @@ module bp_test #() (
     input logic p1, p2,
     output logic p3,
 
-    // for testing MUX
-    input logic s0, s1, x,
-    output logic mux
+    // for testing fanout stuff
+    input logic f1, f2,
+    output logic f0
 );
 
-logic y1, y2, y3, y4, y5, y6;
+logic y1, y2, y3, y4, y5, y6, fi;
 
 assign y1 = ~a;
 assign y2 = ~b;
@@ -27,6 +27,8 @@ assign o = y6;
 
 assign p3 = ~(p1 ^ p2);
 
+assign fi = ~f1 | f2;
+assign f0 = (fi ^ fi);
 
 endmodule
 

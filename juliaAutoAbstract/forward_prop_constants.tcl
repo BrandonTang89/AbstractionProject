@@ -2,7 +2,7 @@
 
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
 variable baseDir [file dirname [file normalize [info script]]]
-source [file join $baseDir auto_abstract.tcl]
+source [file join $baseDir utils.tcl]
 
 proc forward_prop {constants} {
     set result $constants
