@@ -1,9 +1,9 @@
-################################################################################
-# Symbolic simulation of the CAM with no abstraction
-################################################################################
-
-set DATA_LENGTH 2;
-set ADDR_WIDTH 2;
+# =====================================================================
+# Verification of the combinational aspect of the CAM via automatic indexing transformation
+# =====================================================================
+set DATA_WIDTH 1; # log d
+set ADDR_WIDTH 2; # log n
+set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
 clear -all
@@ -14,11 +14,14 @@ elaborate -top cam_top -parameter DATA_LENGTH $DATA_LENGTH -parameter ADDR_WIDTH
 clock -both_edges clk
 reset -none
 
+source ../juliaAutoAbstract/auto_abstract.tcl
+source ../juliaAutoAbstract/simulate.tcl
+source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
 source ../CommonUtils_Brandon/symsim_utils.tcl
 source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
-set_symsim_expr_pretty_print_threshold 30
+set_symsim_expr_pretty_print_threshold 3000
 
 # === Symsim Set Up ===
 set model_id [check_symsim -model -create]
@@ -45,9 +48,26 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 }
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
+set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
-# Create resolved sequence
-set antecedent_seq [check_symsim -sequence -create $antv -name my_sequence]
+# === Create indexing relation === 
+set partition_abstraction [autoabstract next_hit [VAR t0] [NOT [VAR t0]]]
+
+# Check coverage
+# set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables]
+# assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
+
+set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
+set abstraction_S [lindex $normal_abstraction 0]
+set abstraction_T [lindex $normal_abstraction 1]
+set dom [get_domain $abstraction_S $abstraction_T]
+
+# === Indexing Transformation ===
+# Apply the indexing transformation to the stimuli
+set transformed_ant_stimuli [strong_preimage_stim_part $antv $abstraction_T $dom $bdd_variables]
+
+# Create a sequence from tranformed stimuli
+set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
 # Run the symbolic simulation
@@ -62,13 +82,14 @@ set eval_out [check_symsim  -eval $model_id \
 set eval_seq [dict get $eval_out sequence_id]
 
 # Visualise the simulation
-check_symsim -sequence $eval_seq -get [list hit] -verbose
+check_symsim -sequence $eval_seq -get [list next_hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
-# Check the properties (since no abstraction we just need to check that the relevant proeprties are high at the required tick)
-set prop_high [TRUE]
+# === Transformation of the property ===
+set prop_high $dom
 set prop_low [FALSE]
 
+check_symsim -expression -depends $prop_high
 PR $prop_high
 PR $prop_low
 

@@ -8,11 +8,13 @@ proc XOR {a b} { check_symsim -expression -xor $a $b }
 proc XNOR {a b} { check_symsim -expression -xnor $a $b }
 proc IMPLIES {a b} { check_symsim -expression -implies $a $b }
 proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quantify $expression $tvariables }
-
+proc FORALL_QUANT {tvariables expression} { check_symsim -expression -forall_quantify $expression $tvariables }
 
 #######################################
 # Analogue of create_antecedent for dual rail signals
-#  - Supports wide siggnals
+#  - Supports wide signals
+#  - Returns a dictionary of the form 
+# {signal_bit: [(high_expr = bdd_variable@tick, low_expr = NOT bdd_variable@tick, tick:tick) for tick in tick_list]}
 ######################################
 proc create_dual_rail_antecedent {signal tick_list} {
     set antv [dict create]
@@ -99,6 +101,7 @@ proc strong_preimage {relation predicate target_vars} {
 
 #######################################
 # Procedures to apply the preimages to a stimuli dictionary
+# A stimuli dict is a dictionary of the form {signal: [(bdd_expr_id, not_bdd_expr_id, tick_range)]}
 #######################################
 proc apply_preimage {preimage_func stimuli_dict index_rel target_variables} {
     set transformed_dict [dict create]
@@ -127,7 +130,7 @@ proc weak_preimage_stim {stimuli_dict index_rel target_variables} {
 }
 
 #######################################
-# Procedures to get the high and low values of a signal at a tick
+# Procedures to get the high and low values of a signal at a tick from a simulation sequence
 #######################################
 proc get_high_low {tick sim_seq} {
     foreach {seq_tup} $sim_seq {
@@ -184,8 +187,10 @@ proc check_has_top {eval_seq signals} {
 
 # - properties: dictionary of the form {signal: tick}
 # - eval_seq: ID of the output sequence from a symbolic simulation (symsim -eval)
-# - prop_high: high expression required of properties (i.e. weak_preimage of TRUE)
-# - prop_low: low expression required of properties (i.e. weak_preimage of FALSE)
+# - prop_high: high expression required of properties (i.e. weak_preimage of TRUE) 
+#    - this is the dom(R)[X] = ∃T R[X,T] in the 2007 paper.
+# - prop_low: low expression required of properties (i.e. weak_preimage of FALSE) 
+#    - which should be FALSE for properties of the relevant form
 # - verbose: flag to print the results
 
 # Returns a dictionary of the form {(signal, tick): satisfied}
@@ -197,6 +202,8 @@ proc check_has_top {eval_seq signals} {
 
 # Note that this relies on the precondition that no signal in the simulation ever has both high and low expr satisfied at the same time
 # i.e. no TOP
+
+# Note that below doesn't use the knowledge that prop_low should be FALSE to allow for functional properties in general.
 
 proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbose 1}} {
     # Ensure we don't have any signals with TOP
@@ -232,7 +239,7 @@ proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbo
 
 #########################################################
 # DEPRECATED (Don't use with new code)
-# Instead of create_bdd_variable and create_stimuli_dict, use the create_antecedent
+# Instead of create_bdd_variable and create_stimuli_dict, use create_dual_rail_antecedent
 #########################################################
 
 #######################################

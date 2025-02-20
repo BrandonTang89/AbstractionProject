@@ -56,7 +56,7 @@ clear -all
 analyze -sv cam.sv
 analyze -sva cam_spec.sva
 analyze -sv bind_cam.sv
-elaborate -top cam_top -loop_limit 100000
+elaborate -top cam_top -parameter DATA_LENGTH $DATA_LENGTH -parameter ADDR_WIDTH $ADDR_WIDTH -loop_limit 100000
 clock -both_edges clk
 reset -none
 
@@ -74,12 +74,14 @@ set signals [check_symsim -model $model_id -list signal]
 
 # == Set up property to check ==
 set properties [dict create \
-    spec.assert_hit_signal 4 \
+    spec.assert_hit 4 \
+    spec.assert_next_hit 2 \
 ]
 
 set max_property_tick [max_dict_values $properties]
 
 # === Set up Antecedent ===
+# We don't need to stimulate on tick 4, leave it as Xs
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
@@ -194,6 +196,9 @@ set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make
 
 check_symsim -expression -depends $index_rel
 PR $index_rel
+
+# Check coverage
+set coverage [satisfiesCoverage $index_rel $bdd_variables]
 
 
 # === Indexing Transformation ===

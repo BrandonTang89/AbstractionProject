@@ -1,22 +1,11 @@
 # ===== Symbolic Simulation with Indexing Transformations =====
-# This script applies an indexing transformation to add abstraction to the simulation
+# This script runs a symbolic simulation with an indexing transformation and input constraints
 
-# We use the following indexing relation:
-# p and q and r -> a@2 and b@2 and c@2 and a@4 and b@4 and c@4
-# p and q and (not r) -> not a@2
-# p and (not q) and r -> not b@2
-# (not p) and q and r -> not c@2
-# (not p) and (not q) and r -> not a@4
-# (not p) and q and (not r) -> not b@4
-# p and (not q) and (not r) -> not c@4p
-# p OR q OR r
-
-# This satisfies the coverage condition that 
-    # for each 2^6 possible inputs (across 3 signals on 2 time ticks),
-    # we have some value of (p, q, r) that maps to that
-
-# The initial set up is the same as for the no-abstraction simulation
 clear -all
+source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../CommonUtils_Brandon/helpers.tcl
+source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
+source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
 analyze -sv and_2_cycles.sv
 analyze -sva and_2_cycle_spec_mod.sva
 analyze -sv bind_and_2_cycles.sv
@@ -24,11 +13,8 @@ elaborate -top and_2_cycles_top
 clock -both_edges clk
 reset -none
 
-source ../CommonUtils_Brandon/symsim_utils.tcl
-source ../CommonUtils_Brandon/helpers.tcl
-source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 namespace import symsim::*
-set_symsim_expr_pretty_print_threshold 30
+set_symsim_expr_pretty_print_threshold 300
 
 # === Symsim Set Up ===
 set model_id [check_symsim -model -create]
@@ -37,7 +23,7 @@ set assertions [check_symsim -model $model_id -list assert]
 # == Set up property to check ==
 set properties [dict create \
     spec.and_correct 6 \
-    spec.and_wrong 6 \
+    spec.special_case 6 \
 ]
 
 set max_property_tick [max_dict_values $properties]
@@ -68,27 +54,54 @@ set index_rel [AND \
     [OR $p $q $r]\
 ]
 
-# Example of too coarse abstraction, doesn't work
-# set index_rel [AND \
-#     [IMPLIES $p [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
-#     [IMPLIES [NOT $p] [OR [NOT [VAR a@2]] [NOT [VAR b@2]] [NOT [VAR c@2]] [NOT [VAR a@4]] [NOT [VAR b@4]] [NOT [VAR c@4]]]] \
-# ]
-
 set index_rel [check_symsim -expression -canonize $index_rel]
-
-# Check that the indexing relation is as expected
-check_symsim -expression -depends $index_rel
 PR $index_rel
 
+# === Construct Input Constraints ===
+# Here we assume the input constraint that 
+# ((a@2 AND b@2) = (a@2 AND c@2)) AND ((a@4 AND b@4) = (a@4 AND c@4))
+# this is equivalent to
+# ((a@2 AND b@2) XNOR (a@2 AND c@2)) AND ((a@4 AND b@4) XNOR (a@4 AND c@4))
+
+set input_constraint [AND \
+    [XNOR [AND [VAR a@2] [VAR b@2]] [AND [VAR a@2] [VAR c@2]]] \
+    [XNOR [AND [VAR a@4] [VAR b@4]] [AND [VAR a@4] [VAR c@4]]] \
+]
+
+PR $input_constraint
+
+# === Parameterise away the input constraint ===
+# Here we are fine with parameterising away all the variables
+set param_output [check_symsim -param -expressions [list $input_constraint] -exclude_symbols [list]]
+set param_res [dict get $param_output param_res]
+
+# # TODO: figure out what is_sat_exprs really is
+assert [expr {[dict get $param_res is_sat_exprs] == 1}] "Parameterisation failed"
+
+set param_substitutions [lindex [dict get $param_res symb_subst] 0]
+proc rename_param_phase_0 {exp} {return [rename_param_variables $exp 0]}
+
+# # We rename the substituted variables 
+set param_subs_renamed [dict_map $param_substitutions rename_param_phase_0]
+
+# # == Apply parameterisation to the Antecedent and Indexing Relation ==
+set stimuli_paramed [apply_substitution_stim $antv $param_subs_renamed]
+set index_rel_paramed [check_symsim -expression -substitute $index_rel $param_subs_renamed]
+
+# set index_rel_paramed [AND $index_rel $input_constraint]
+
 # Check Coverage
-set coverage [satisfiesCoverage $index_rel $bdd_variables]
+set coverage [satisfiesCoverage $index_rel_paramed $bdd_variables "" $input_constraint]
+set coverage [satisfiesCoverage $index_rel_paramed $bdd_variables]
+
 assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
-# === Indexing Transformation ===
-# Apply the indexing transformation to the stimuli
-set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
-# Create a sequence from tranformed stimuli
+# === Indexing Transformation ===
+set transformed_ant_stimuli [strong_preimage_stim $stimuli_paramed $index_rel_paramed $bdd_variables]
+# set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel_paramed $bdd_variables]
+
+# === Run the symbolic simulation ===
 set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
@@ -103,26 +116,16 @@ set eval_out [check_symsim  -eval $model_id \
 
 set eval_seq [dict get $eval_out sequence_id]
 
+
 # Visualise the simulation
-# Here we can manually inspect to see the value of o (at tick 6) but we need to figure out if this is actually correct
 check_symsim -sequence $eval_seq -get [list a b c o] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-# With the modified property, we can perform the weak preimage transformation to get the transformed consequence
-# We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]  
-
-# prop_low should always be false
-# prop_high is the domain of the indexing relation, i.e. all abstraction cases that correspond to some target assignment
+set prop_low [weak_preimage $index_rel_paramed [FALSE] $bdd_variables]  
+set prop_high [weak_preimage $index_rel_paramed $input_constraint $bdd_variables] 
 
 PR $prop_high
 PR $prop_low
-
-# We then need to conclude whether the property is satisfied or not
-# for a property to be satisfied, both expressions of the property signal in the consequence should imply their respective symbolic simulation exprs
-# i.e. for all assignments A where A ent cons(high), we must have A ent sim(high)
-# and for all assignments A where A ent cons(low), we must have A ent sim(low)
 
 check_properties_against_sim $properties $eval_seq $prop_high $prop_low
