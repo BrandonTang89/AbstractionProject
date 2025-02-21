@@ -48,8 +48,10 @@ Indexing relations $R[X, C, T]$ are boolean formulae over BDD variables where
 - $C$ are the symbolic constants that correspond to target wires that should not be indexed
 
 The indexing relation can be interpreted as follows:
-- For each $X, C$, we cover the cases where $exists T R[X, C, T]$. 
-- Since the indexing relation can be a many to many relation, we can have multiple $T, C$ cases covered by a single $X, C$ case indexing.
+- For each $X, C$, we cover the cases $T, C$ where $exists T R[X, C, T]$. 
+- Since the indexing relation can be a many to many relation, we can have multiple $T, C$ cases covered by a single $X, C$ case indexing and vice versa.
+
+Note that the indexing relation $R'[(X, C'), emptyset, (C, T)] = R[X, C, T] and and.big (C = C')$ that doesn't use symbolic constants is equivalent to $R[X, C, T]$ from the perspective of doing symbolic simulation and its associated operations (see below). The use of symbolic constants does not improve the expressive power of our indexing relations, but rather helps to simplify them in order to make them more efficient to use.
 
 === Preimage Operations
 We define some operations involving the indexing relation here:
@@ -353,9 +355,9 @@ Given an indexing relation that only indexes the cases in $P$, we can just apply
 ==== Variation: Condition the Antecedent Rather than Restricting the Indexing Relation
 We note that doing the combining the above approach with the automatic abstraction would destroy the partitioned abstraction preimage structure, meaning we cannot directly apply the efficient preimage computations described above. 
 
-However, we can employ a similar strategy where we first modify each BDD expression $e$ in the antecedent to the form $(e and P) or overline(P) equiv P -> e$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $e$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants in the below image). We modify the guard of the output constraint to include $P$ and do the checking as described above. 
+However, we can employ a similar strategy where we first modify each BDD expression $E$ in the antecedent to the form $E' := (E and P) or overline(P) equiv P -> E$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $e$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants in the below image). We modify the guard of the output constraint to include $P$ and do the checking as described above. 
 
-Note that compared to when we don't have input constraints, doing this will potentially cause some signals to be $top$, but only when the indexing variable assignment indexes into both $P$ and $overline(P)$. This is actually alright, since neither $P^R$ nor $P_R$ will contain such cases, thus not affecting our output checking procedure (for either correctness or counter example analysis). Since the only indexing cases that we consider during analysis are those that index at least one case in $P$, this is equivalent to to restriction method described above.
+Note that compared to when we don't have input constraints, doing this will potentially cause some signals to be $top$, but only when the indexing variable assignment indexes into only $overline(P)$. This is actually alright, since $P_R$ not will contain such cases, thus not affecting our output checking procedure (for either correctness or counter example analysis). Since the only indexing cases that we consider during analysis are those that index at least one case in $P$, this is equivalent to to restriction method described above.
 
 Since we are not modify the indexing relation, we can still use the partitioned abstraction preimage operations which are more efficient.
 

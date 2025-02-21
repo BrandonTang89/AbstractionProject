@@ -55,8 +55,10 @@ set query_variables [get_dual_rail_antecedent_variable_names $ant_query]
 
 # === Create indexing relation === 
 # set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] $query_variables]
-set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]] $query_variables]
-# set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [VAR t_0] [NOT [VAR t_0]] $query_variables]
+
+# set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]] $query_variables]
+set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
 
 ## No Symbolic Constants
 # set bdd_variables [get_dual_rail_antecedent_variable_names $antv] 

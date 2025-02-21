@@ -46,6 +46,26 @@ proc merge_dual_rail_antecedents {args} {
 
 
 #######################################
+# Procedure to condition an antecedent based on an input constraint
+# I.e. replace each (high, low, tick) tuple with (input_constraint => high, input_constraint => low, tick)
+# Used for environmental constraints
+#######################################
+proc condition_antv {antv input_constraint} {
+    set conditioned_antv [dict create]
+    foreach {signal tuples} $antv {
+        set conditioned_tuples {}
+        foreach tuple $tuples {
+            set high [lindex $tuple 0]
+            set low [lindex $tuple 1]
+            set tick [lindex $tuple 2]
+            lappend conditioned_tuples [list [IMPLIES $input_constraint $high] [IMPLIES $input_constraint $low] $tick]
+        }
+        dict set conditioned_antv $signal $conditioned_tuples
+    }
+    return $conditioned_antv
+}
+
+#######################################
 # Procedure to get the variables an antv depends on
 # Note that this returns a list of the variable names rather than the IDs. To be used with QUANT_EXISTS
 #######################################
@@ -207,7 +227,8 @@ proc check_has_top {eval_seq signals} {
 
 proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbose 1}} {
     # Ensure we don't have any signals with TOP
-    assert [expr {[check_has_top $eval_seq [dict keys $properties]] == 0}] "Simulation has TOP for some signals"
+    # No longer a safe assumption with conditioning on input_constraint environmental condition strategy
+    # assert [expr {[check_has_top $eval_seq [dict keys $properties]] == 0}] "Simulation has TOP for some signals"
 
     set symbolic_sequence [check_symsim -sequence $eval_seq -get [dict keys $properties]]
     set proof_result [dict create]
