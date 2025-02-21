@@ -1,8 +1,11 @@
 # =====================================================================
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
+# Doesn't use the efficient preimage computation
+# Makes use of symbolic constants
 # =====================================================================
-set DATA_WIDTH 1; # log d
-set ADDR_WIDTH 2; # log n
+set DATA_WIDTH 3; # log d
+set ADDR_WIDTH 6; # log n
+set TEST_ITERATIONS 10
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
@@ -31,6 +34,7 @@ set signals [check_symsim -model $model_id -list signal]
 
 # == Set up property to check ==
 set properties [dict create \
+    spec.assert_hit 4 \
     spec.assert_next_hit 2 \
 ]
 
@@ -48,62 +52,77 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 }
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
-
-# Target variables excluding the query variables
 set bdd_variables [get_dual_rail_antecedent_variable_names $ant_mem] 
 set query_variables [get_dual_rail_antecedent_variable_names $ant_query]
 
-# === Create indexing relation === 
-# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] $query_variables]
-# set partition_abstraction [autoabstract spec.assert_next_hit_signal [VAR t_0] [NOT [VAR t_0]] $query_variables]
+# === Create indexing relation ===
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [VAR t0] [NOT [VAR t0]]]
+set abstraction_time [time {
+    set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
+} $TEST_ITERATIONS ]
 
-# set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]] $query_variables]
-set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
 
-## No Symbolic Constants
-# set bdd_variables [get_dual_rail_antecedent_variable_names $antv] 
-# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE]]
-# set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]]]
+set transform_time [time {
+    set index_rel [combine_abstractions $partition_abstraction]
+    set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
+} $TEST_ITERATIONS ]
+
 
 # Check coverage
-set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables $query_variables]
+set coverage [getCoverage $index_rel $bdd_variables]
 assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
-
-set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
-set abstraction_S [lindex $normal_abstraction 0]
-set abstraction_T [lindex $normal_abstraction 1]
-set dom [get_domain $abstraction_S $abstraction_T]
+# check_symsim -expression -depends $index_rel 
+# PR $index_rel
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-set transformed_ant_stimuli [strong_preimage_stim_part $antv $abstraction_T $dom $bdd_variables]
+# set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 
 # Create a sequence from tranformed stimuli
-set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
-set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
-# Run the symbolic simulation
-set num_ticks [expr $max_property_tick + 2]
-set eval_out [check_symsim  -eval $model_id \
+set eval_time [time {
+    set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
+    set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
+
+    # Run the symbolic simulation
+    set num_ticks [expr $max_property_tick + 2]
+    set eval_out [check_symsim  -eval $model_id \
                             -resolved_sequence $resolved_seq_id \
                             -start_tick 1 \
                             -num_ticks $num_ticks \
                             -init_states false\
                             -canonize on]
 
-set eval_seq [dict get $eval_out sequence_id]
+    set eval_seq [dict get $eval_out sequence_id]
+} $TEST_ITERATIONS ]
 
 # Visualise the simulation
 check_symsim -sequence $eval_seq -get [list next_hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
-# === Transformation of the property ===
-set prop_high $dom
-set prop_low [FALSE]
+set check_time [time {
+    set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
+    set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
 
-check_symsim -expression -depends $prop_high
-PR $prop_high
-PR $prop_low
+    # check_symsim -expression -depends $prop_high
+    # PR $prop_high
+    # PR $prop_low
 
-check_properties_against_sim $properties $eval_seq $prop_high $prop_low
+    check_properties_against_sim $properties $eval_seq $prop_high $prop_low
+}  $TEST_ITERATIONS ]
+
+# === Timing Information ===
+puts "Automatic Indexing of the CAM with Partitioned Abstraction"
+puts "Time taken for Abstraction: $abstraction_time"
+puts "Time taken for Transformation: $transform_time"
+puts "Time taken for Evaluation: $eval_time"
+puts "Time taken for Checking: $check_time"
+
+puts "Total Time: [expr {[lindex $abstraction_time 0] \
+                        + [lindex $transform_time 0] \
+                        + [lindex $eval_time 0] \
+                        + [lindex $check_time 0]}]"
+
+puts "NUM_ENTRIES: $NUM_ENTRIES"
+puts "DATA_LENGTH: $DATA_LENGTH"

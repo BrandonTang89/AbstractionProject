@@ -3,6 +3,7 @@
 # =====================================================================
 set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
+
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
@@ -30,7 +31,6 @@ set signals [check_symsim -model $model_id -list signal]
 
 # == Set up property to check ==
 set properties [dict create \
-    spec.assert_hit 4 \
     spec.assert_next_hit 2 \
 ]
 
@@ -48,14 +48,30 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 }
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
-set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
+
+# Target variables excluding the query variables
+set bdd_variables [get_dual_rail_antecedent_variable_names $ant_mem] 
+set query_variables [get_dual_rail_antecedent_variable_names $ant_query]
 
 # === Create indexing relation === 
-set partition_abstraction [autoabstract next_hit [VAR t0] [NOT [VAR t0]]]
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE] $query_variables]
+set partition_abstraction [autoabstract spec.assert_next_hit_signal [VAR t_0] [NOT [VAR t_0]] $query_variables]
 
-# Check coverage
-# set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables]
-# assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
+# set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]] $query_variables]
+# set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
+
+## No Symbolic Constants
+# set bdd_variables [get_dual_rail_antecedent_variable_names $antv] 
+# set partition_abstraction [autoabstract spec.assert_next_hit_signal [TRUE] [FALSE]]
+# set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]]]
+
+# Check coverage (NOT COVERED WHEN WE ABSTRACT FROM PROPERTY WIRE)
+set coverage [getCoveragePartitioned $partition_abstraction $bdd_variables $query_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
+set notCovered [NOT $coverage]
+PR $notCovered
+
+check_symsim -expression -pick_assignment [list $notCovered] -small
 
 set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
 set abstraction_S [lindex $normal_abstraction 0]

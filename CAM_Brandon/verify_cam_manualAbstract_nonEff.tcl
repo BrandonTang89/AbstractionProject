@@ -192,33 +192,40 @@ proc make_query_tagin {} {
     return $conjunct
 }
 
-set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]] [make_query_tagin]]
+set abstraction_time [time {
+    set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]] [make_query_tagin]]
+} $TEST_ITERATIONS ]
 
 check_symsim -expression -depends $index_rel
 PR $index_rel
 
 # Check coverage
-set coverage [satisfiesCoverage $index_rel $bdd_variables]
-
+# set coverage [getCoverage $index_rel $bdd_variables]
+# assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
+set transform_time [time {
+    set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
+} $TEST_ITERATIONS ]
 
-# Create a sequence from tranformed stimuli
-set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
-set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
-# Run the symbolic simulation
-set num_ticks [expr $max_property_tick + 2]
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_time [time{
+    # Create a sequence from tranformed stimuli
+    set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
+    set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
-set eval_seq [dict get $eval_out sequence_id]
+    # Run the symbolic simulation
+    set num_ticks [expr $max_property_tick + 2]
+    set eval_out [check_symsim  -eval $model_id \
+                                -resolved_sequence $resolved_seq_id \
+                                -start_tick 1 \
+                                -num_ticks $num_ticks \
+                                -init_states false\
+                                -canonize on]
+
+    set eval_seq [dict get $eval_out sequence_id]
+} $TEST_ITERATIONS ]
 
 # Visualise the simulation
 # Here we can manually inspect to see the value of o (at tick 6) but we need to figure out if this is actually correct
@@ -226,17 +233,29 @@ check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
+set check_time [time {
+    set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
+    set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
+
+    check_symsim -expression -depends $prop_high
+    PR $prop_high
+    PR $prop_low
+
+    check_properties_against_sim $properties $eval_seq $prop_high $prop_low
+} $TEST_ITERATIONS]
 
 
-check_symsim -expression -depends $prop_high
-PR $prop_high
-PR $prop_low
+# === Timing Results ===
+puts "Manual Indexing of the CAM with Inefficient Preimage Calculation"
+puts "Time taken for Abstraction: $abstraction_time"
+puts "Time taken for Transformation: $transform_time"
+puts "Time taken for Evaluation: $eval_time"
+puts "Time taken for Checking: $check_time"
 
-check_properties_against_sim $properties $eval_seq $prop_high $prop_low
-check_symsim -expression -get_canonical $prop_high
+puts "Total Time: [expr {[lindex $abstraction_time 0] \
+                        + [lindex $transform_time 0] \
+                        + [lindex $eval_time 0] \
+                        + [lindex $check_time 0]}]"
 
-# Sanity Checks
-# Observe that hit is high if and only if h is true, this is expected from our indexing relation
-# We can inspect the transformed antv to see that the query is exactly the same as the tagin
+puts "NUM_ENTRIES: $NUM_ENTRIES"
+puts "DATA_LENGTH: $DATA_LENGTH"

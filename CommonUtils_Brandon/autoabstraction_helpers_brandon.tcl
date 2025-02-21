@@ -1,3 +1,4 @@
+
 #######################################
 # Converts a partitioned abstraction [(TARGVAR/SymbolicConstBDD, highexpr, lowexpr)] into the form (S, T)
 # Takes the partitioned abstraction and a list of target_variables (as strings)
@@ -40,6 +41,35 @@ proc normalise_abstraction {partition_abstraction target_variables} {
     }
 
     return [list $S $T_dict]
+}
+
+#######################################
+# Condenses a partitioned abstraction by combining cases with the same LHS
+#######################################
+proc condense_abstraction {partition_abstraction} {
+    # Dictionary of all expressions that occur in the LHS of the abstraction
+    # When used with auto abstract, this should be symbolic constant expressions or target variables
+    set E_dict [dict create]
+
+    foreach abstraction $partition_abstraction {
+        set expr [lindex $abstraction 0]
+        set hexpr [lindex $abstraction 1]
+        set lexpr [lindex $abstraction 2]
+
+        if {[dict exists $E_dict $expr]} {
+            set hexpr [OR $hexpr [lindex [dict get $E_dict $expr] 0]]
+            set lexpr [OR $lexpr [lindex [dict get $E_dict $expr] 1]]
+        }
+
+        dict set E_dict $expr [list $hexpr $lexpr]
+    }
+
+    set condensed [list]
+    foreach key [dict keys $E_dict] {
+        lappend condensed [list $key [lindex [dict get $E_dict $key] 0] [lindex [dict get $E_dict $key] 1]]
+    }
+
+    return $condensed
 }
 
 #######################################
@@ -190,8 +220,41 @@ proc rename_partition_abstraction {partition_abstraction inputs} {
 
 
 #######################################
+# Returns the T, C that are covered
+#######################################
+proc getCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}} {
+    if {$care_pred eq ""} {
+        set care_pred [TRUE]
+    }
+
+    puts "Target vars: $target_vars"
+    puts "Symbolic consts: $symbolic_consts"
+    puts "Care pred: $care_pred"
+
+    set all_vars [check_symsim -expression -depends $idx_rel]
+    set index_vars [difference $all_vars $target_vars]
+    set index_vars [difference $index_vars $symbolic_consts]
+
+    puts "Index vars: $index_vars"
+
+    set expr [
+        IMPLIES $care_pred [
+            EXISTS_QUANT $index_vars $idx_rel
+        ]
+    ]
+
+    return $expr
+}
+
+proc getCoveragePartitioned {partition_abstraction target_vars {symbolic_consts ""} {care_pred ""}} {
+    set index_rel [combine_abstractions $partition_abstraction]
+    return [getCoverage $index_rel $target_vars $symbolic_consts $care_pred]
+}
+
+#######################################
 # Check coverage
 # Returns true iff the abstraction satisfies the coverage property
+# (Deprecated, might as well use the above get coverage function)
 #######################################
 proc satisfiesCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}} {
     if {$care_pred eq ""} {

@@ -1,21 +1,22 @@
 # =====================================================================
-# CAM Verification Script
+# Max Circuit Verification Script
 #
 # Top-level verification script for Jasper.
 # =====================================================================
 
-set DATA_WIDTH 1; # log d
-set ADDR_WIDTH 2; # log n
+set DATA_WIDTH 4; # log d
+set ADDR_WIDTH 6; # log n
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
 clear -all
-analyze -sv cam.sv
-analyze -sva cam_spec.sva
-analyze -sv bind_cam.sv
-elaborate -top cam_top -parameter DATA_LENGTH $DATA_LENGTH -parameter ADDR_WIDTH $ADDR_WIDTH -loop_limit 100000
+analyze -sv maxCircuit.sv
+analyze -sva maxCircuitSpec.sva
+analyze -sv maxCircuitBind.sv
+elaborate -top max_circuit_top -parameter DATA_LENGTH $DATA_LENGTH -parameter ADDR_WIDTH $ADDR_WIDTH -loop_limit 100000
 clock -both_edges clk
 reset -none
 
 prove -all
+

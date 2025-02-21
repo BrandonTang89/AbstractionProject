@@ -1,5 +1,6 @@
 # =====================================================================
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
+# Includes timing information
 # =====================================================================
 set DATA_WIDTH 3; # log d
 set ADDR_WIDTH 6; # log n
@@ -100,20 +101,19 @@ check_symsim -sequence $eval_seq -get [list next_hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-set prop_high $dom
-set prop_low [FALSE]
-
-check_symsim -expression -depends $prop_high
-PR $prop_high
-PR $prop_low
-
-
 set check_time [time {
+    set prop_high $dom
+    set prop_low [FALSE]
+
+    # check_symsim -expression -depends $prop_high
+    # PR $prop_high
+    # PR $prop_low
+
     check_properties_against_sim $properties $eval_seq $prop_high $prop_low
 }  $TEST_ITERATIONS ]
 
-# Checkpoint for End
-
+# === Timing Information ===
+puts "Automatic Indexing of the CAM with Partitioned Abstraction"
 puts "Time taken for Abstraction: $abstraction_time"
 puts "Time taken for Transformation: $transform_time"
 puts "Time taken for Evaluation: $eval_time"

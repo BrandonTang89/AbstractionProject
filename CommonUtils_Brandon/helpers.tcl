@@ -94,3 +94,13 @@ proc difference {list1 list2} {
     }
     return $result
 }
+
+proc flatten {list} {
+    set result {}
+    foreach sublist $list {
+        foreach item $sublist {
+            lappend result $item
+        }
+    }
+    return $result
+}

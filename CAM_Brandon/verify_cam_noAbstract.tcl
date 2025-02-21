@@ -2,8 +2,8 @@
 # Symbolic simulation of the CAM with no abstraction
 ################################################################################
 
-set DATA_WIDTH 3; # log d
-set ADDR_WIDTH 6; # log n
+set DATA_WIDTH 4; # log d
+set ADDR_WIDTH 7; # log n
 set TEST_ITERATIONS 10
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
@@ -71,18 +71,22 @@ check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # Check the properties (since no abstraction we just need to check that the relevant proeprties are high at the required tick)
-set prop_high [TRUE]
-set prop_low [FALSE]
-
-PR $prop_high
-PR $prop_low
-
 set check_time [time {
+    set prop_high [TRUE]
+    set prop_low [FALSE]
+
+    # PR $prop_high
+    # PR $prop_low
+
     check_properties_against_sim $properties $eval_seq $prop_high $prop_low
 }  $TEST_ITERATIONS ]
 
-puts "Check time: $check_time"
+# === Timing Information ===
+puts "No Indexing Symbolic Simulation of the CAM"
 puts "Eval time: $eval_time"
+
+puts "Check time: $check_time"
+puts "Total Time: [expr {[lindex $eval_time 0] + [lindex $check_time 0]}]"
 
 puts "NUM_ENTRIES: $NUM_ENTRIES"
 puts "DATA_LENGTH: $DATA_LENGTH"
