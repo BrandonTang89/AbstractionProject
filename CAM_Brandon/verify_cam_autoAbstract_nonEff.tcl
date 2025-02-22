@@ -3,8 +3,8 @@
 # Doesn't use the efficient preimage computation
 # Makes use of symbolic constants
 # =====================================================================
-set DATA_WIDTH 3; # log d
-set ADDR_WIDTH 6; # log n
+set DATA_WIDTH 2; # log d
+set ADDR_WIDTH 4; # log n
 set TEST_ITERATIONS 10
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
@@ -61,7 +61,6 @@ set abstraction_time [time {
     set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
 } $TEST_ITERATIONS ]
 
-
 set transform_time [time {
     set index_rel [combine_abstractions $partition_abstraction]
     set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
@@ -77,11 +76,8 @@ assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
-# set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
-
-# Create a sequence from tranformed stimuli
-
 set eval_time [time {
+    # Create a sequence from tranformed stimuli
     set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
     set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 

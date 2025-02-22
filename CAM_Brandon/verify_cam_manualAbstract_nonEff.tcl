@@ -51,6 +51,7 @@ set DATA_WIDTH 1; # log d
 set ADDR_WIDTH 2; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
+set TEST_ITERATIONS 1
 
 clear -all
 analyze -sv cam.sv

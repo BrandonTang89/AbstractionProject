@@ -49,8 +49,8 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 
-# Create resolved sequence
 set eval_time [time {
+    # Create resolved sequence
     set antecedent_seq [check_symsim -sequence -create $antv -name my_sequence]
     set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 

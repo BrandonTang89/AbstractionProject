@@ -2,7 +2,7 @@
 # Symbolic simulation of the MaximumCircuit with no abstraction
 ################################################################################
 
-set DATA_WIDTH 4; # log d
+set DATA_WIDTH 3; # log d
 set ADDR_WIDTH 6; # log n
 set TEST_ITERATIONS 1
 
@@ -31,7 +31,7 @@ set signals [check_symsim -model $model_id -list signal]
 # == Set up property to check ==
 set properties [dict create \
     spec.assert_contained 2 \
-    spec.assert_bounds 2 \
+    spec.assert_bounds 2
 ]
 
 set max_property_tick [max_dict_values $properties]

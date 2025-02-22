@@ -66,7 +66,6 @@ set abstraction_time [time {
 # set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables $query_variables]
 # assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
-
 # === Indexing Transformation ===
 set transform_time [time {
     set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
@@ -78,9 +77,9 @@ set transform_time [time {
     set transformed_ant_stimuli [strong_preimage_stim_part $antv $abstraction_T $dom $bdd_variables]
 }  $TEST_ITERATIONS ]
 
-# Create a sequence from tranformed stimuli
 
 set eval_time [time {
+    # Create a sequence from tranformed stimuli
     set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
     set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 

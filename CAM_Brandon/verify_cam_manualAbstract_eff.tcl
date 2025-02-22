@@ -198,7 +198,6 @@ set eval_time [time {
 } $TEST_ITERATIONS ]
 
 # Visualise the simulation
-# Here we can manually inspect to see the value of o (at tick 6) but we need to figure out if this is actually correct
 check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
@@ -206,7 +205,6 @@ check_symsim -sequence $eval_seq -get $assertions -verbose
 set check_time [time {
     set prop_high $dom
     set prop_low [FALSE]
-
 
     # check_symsim -expression -depends $prop_high
     # PR $prop_high
