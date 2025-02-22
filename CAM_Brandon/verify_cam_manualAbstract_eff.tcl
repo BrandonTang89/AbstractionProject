@@ -4,8 +4,8 @@
 # Includes Timing
 # Sets query as a symbolic constant
 # =====================================================================
-set DATA_WIDTH 4; # log d
-set ADDR_WIDTH 7; # log n
+set DATA_WIDTH 5; # log d
+set ADDR_WIDTH 3; # log n
 set TEST_ITERATIONS 10
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]

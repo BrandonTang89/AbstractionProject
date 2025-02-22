@@ -112,16 +112,14 @@ proc d_i_ge {i x} {
 }
 
 ## At least one d[i] = D
-proc s_eq_i_implies_di_eq_D {} {
+proc any_di_eq_D {} {
     global NUM_ENTRIES
     global DATA_LENGTH
-    set conjunct [TRUE]
+    set disjunction [FALSE]
     for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
-        set premise [s_eq $i]
-        set outcome [d_i_eq $i $DATA_LENGTH]
-        set conjunct [AND $conjunct [IMPLIES $premise $outcome]]
+        set disjunction [OR $disjunction [d_i_eq $i $DATA_LENGTH]]
     }
-    return [list [list $conjunct [TRUE] [FALSE]]]
+    return [list [list $disjunction [TRUE] [FALSE]]]
 }
 
 ## Most signficant bits of entry are same
@@ -173,21 +171,21 @@ proc make_critical_bit_smaller {} {
 }
 
 # Set BDD ordering to put Ts in front of the Ds (not clear if this is relevant)
-set bdd_ordering [list]
-for {set i 0} {$i < $DATA_WIDTH} {incr i} {
-    lappend bdd_ordering "t\[$i\]"
-}
-for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
-    for {set j 0} {$j < $DATA_WIDTH} {incr j} {
-        lappend bdd_ordering "d\[$i\]\[$j\]"
-    }
-}
-check_symsim -var_order -set $bdd_ordering
+# set bdd_ordering [list]
+# for {set i 0} {$i < $DATA_WIDTH} {incr i} {
+#     lappend bdd_ordering "t\[$i\]"
+# }
+# for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
+#     for {set j 0} {$j < $DATA_WIDTH} {incr j} {
+#         lappend bdd_ordering "d\[$i\]\[$j\]"
+#     }
+# }
+# check_symsim -var_order -set $bdd_ordering
 
 # === Abstraction ===
 set abstraction_time [time {
     set partition_abstraction [
-        flatten [list [s_eq_i_implies_di_eq_D] [make_top_bits_same] [make_critical_bit_smaller]]
+        flatten [list [any_di_eq_D] [make_top_bits_same] [make_critical_bit_smaller]]
     ]
 } $TEST_ITERATIONS ]
 

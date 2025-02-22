@@ -1,4 +1,3 @@
-
 #######################################
 # Converts a partitioned abstraction [(TARGVAR/SymbolicConstBDD, highexpr, lowexpr)] into the form (S, T)
 # Takes the partitioned abstraction and a list of target_variables (as strings)
@@ -107,33 +106,37 @@ proc get_domain {abstraction_S abstraction_T} {
 # More efficient by exploiting the structure of the partitioned abstraction
 # Analogous to the preimage functions from symsim_helpers_brandon.tcl
 #######################################
-proc weak_preimage_part {abstraction_T domain predicate target_vars} {
+proc weak_preimage_part_without_dom {abstraction_T domain predicate target_vars} {
     set free_vars [check_symsim -expression -depends $predicate]
     set relevant_target_vars [intersect $free_vars $target_vars]
     # puts "relevant_target_vars: $relevant_target_vars"
 
     if {[llength $relevant_target_vars] == 0} {
-        return [AND $domain $predicate]
+        return $predicate
     } elseif {[dict exists $abstraction_T $predicate]} {
         set lexpr [lindex [dict get $abstraction_T $predicate] 1]
-        return [AND $domain [NOT $lexpr]]
+        return [NOT $lexpr]
     } elseif {[dict exists $abstraction_T [NOT $predicate]]} {
         set hexpr [lindex [dict get $abstraction_T [NOT $predicate]] 0]
-        return [AND $domain [NOT $hexpr]]
+        return [NOT $hexpr]
     } else {
         set restricted_dict [dict create]
         foreach relevant_target_var $relevant_target_vars {
             dict set restricted_dict [VAR $relevant_target_var] [dict get $abstraction_T [VAR $relevant_target_var]]
         }
         
-        puts "Restricted dict: $restricted_dict"
+        # puts "Restricted dict: $restricted_dict"
         set RDownP [combine_abstraction_dict $restricted_dict]
-        return [AND $domain [weak_preimage $RDownP $predicate $relevant_target_vars]]
+        return [weak_preimage $RDownP $predicate $relevant_target_vars]
     }
 }
 
+proc weak_preimage_part {abstraction_T domain predicate target_vars} {
+    return [AND $domain [weak_preimage_part_without_dom $abstraction_T $domain $predicate $target_vars]]
+}
+
 proc strong_preimage_part {abstraction_T domain predicate target_vars} {
-    return [AND $domain [NOT [weak_preimage_part $abstraction_T $domain [NOT $predicate] $target_vars]]]
+    return [AND $domain [NOT [weak_preimage_part_without_dom $abstraction_T $domain [NOT $predicate] $target_vars]]]
 }
 
 proc apply_preimage_part {preimage_part_func stimuli_dict abstraction_T domain target_variables} {
