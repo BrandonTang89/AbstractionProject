@@ -340,12 +340,11 @@ $
 
 Proof:
 
-If $cal(F) sect "TargVars" = emptyset$, $P_(R arrow.b P) = True$ so $ P_R = dom(R) and exists T (P[C, T]) = dom(R) and P $
+If $cal(F) sect "TargVars" = emptyset$, $R arrow.b P = True$ so $ P_R = dom(R) and exists T (True and P[C, T]) = dom(R) and P $
 
-If $P = t_i$, $P_(R arrow.b P) = (h_i -> t_i) and (l_i -> overline(t_i))$, so 
-$ P_R = dom(R) and exists t_i ((h_i -> t_i) and (l_i -> overline(t_i) and t_i) and t_i) = dom(R) and overline(l_i) $
+If $P = t_i$, $R arrow.b P = (h_i -> t_i) and (l_i -> overline(t_i))$, so 
+$ P_R = dom(R) and exists t_i ((h_i -> t_i) and (l_i -> overline(t_i)) and t_i) = dom(R) and overline(l_i) $
 
-The $P = overline(t_i)$ case is analagous to the above.
 
 == Efficient Strong Preimage Computation
 Observe that 

@@ -69,6 +69,8 @@ Relational Symbolic Trajectory Evaluation"
 #let dom ="dom"
 #let True = "True"
 #let False = "False"
+#let hexpr = "hexpr"
+#let lexpr = "lexpr"
 #let ent = $tack.double$
 #let nent = $tack.double.not$
 = Introduction
@@ -168,7 +170,7 @@ To incorporate symbolic indexing via indexing transformations, we build an addit
   `Output Constraint: [(signal, tickStart, tickEnd, highExpr, lowExpr)]`
 ]
 
-This output constraint means that on cases where `highExpr` is true, `signal` should be high. When `lowExpr` is true, `signal` should be low. If neither are true, then we don't assert anything about the signal. The `tickStart` and `tickEnd` are the clock cycles that the output constraint should hold for.
+This output constraint means that on cases where `highExpr` is true, `signal` should be high. When `lowExpr` is true, `signal` should be low. If neither are true, then we don't assert anything about the signal. The `tickStart` and `tickEnd` are the clock cycles that the output constraint should hold for. These expressions are known as the guards of the output constraint.
 
 Observe that each output constraint thus consists of two parts: the positive output constraint, which enforces that signal must be high under some condtions, and the negative output constraint, which enforces that signal must be low under some conditions.
 
@@ -249,6 +251,11 @@ For unrestricted output constraints, we will have $P_i = True, Q = False$. In th
 $ forall T forall C exists X (R[X, C, T]) $
 
 Intuitively, the coverage condition states that each input assignment of target variables must be covered by some indexing case and thus considered by the model checker.
+
+=== Constructing Indexing Relations
+To formulate the indexing relation, we will need to encode the case splitting for the different input cases that elicit different outputs from the circuit. This is done manually for specific circuits in the examples of @CAM_example and @maxCircuit_example.
+
+The companion project reinvents the automatic abstraction algorithm from @automaticAbstraction and implements it within JasperGold. It produces a partitioned indexing relation (@partitionedIndexingRelation) that satisfies the coverage condition by construction. 
 
 == rSTE Model Checking Procedure <modelCheckingProcedure>
 Suppose we are given an indexing relation $R$, an antecedent list `antv` and an output constraint list `cout`. We will describe the procedure to prove that the output constraints hold.
@@ -398,7 +405,7 @@ We can prove the check for negative output constraints of the form
 $ forall C forall T (P[T, C] -> not s(C, T)) $ 
 in a similar manner.
 
-==== Alternative Checking by Reversing the Indexing
+=== Alternative Checking by Reversing the Indexing
 Another way to do the check is to take the image of the residual under the indexing relation, i.e. $im(H, R)[C,T]$. This will symbolically represent all the cases for which we know the property will hold. 
 
 $ C, T in im(H, R) &=> exists X (H[X, C] and R[X, C, T]) \
@@ -408,39 +415,204 @@ $ C, T in im(H, R) &=> exists X (H[X, C] and R[X, C, T]) \
 We can then check that $P -> im(H,R) equiv True$. If so then the property is true. On some circuits and indexing relations, this method can avoid weak disagreements compared to the preimage method. This is particularly true if some cases in $P$ are indexed by multiple $X, C$. However, if the number of indexing variables is much less than the number of target variables, this method can be result in large BDDs that may be infeasible to compute.
 
 === Counter Example Analysis
-Suppose that we have $P^R and L != False$. Let $(X, C)$ be such that $(P^R and L)[X, C]$ is true. We show that $(X, C)$ is a counter example to the property $forall C forall T (P(C, T) -> s(C, T))$.
+Suppose that we have $P^R and L != False$. Let $(X, C)$ be such that $(P^R and L)[X, C]$ is true. We show that $(X, C)$ is a counter example to the property $forall C forall T (P[C, T] -> s(C, T))$.
 
-We select some $T\*$ such that $R[X, C, T\*]$ is true. This must exist since $P^R = dom(R) and forall T (R[X, C, T] -> P[C, T])$ so $(X, C)$ is in the domain of $R$, meaning that $exists T R[X,C,T]$. 
 
-Now since $forall T (R[X, C, T] -> P[C, T])$, we must also have that $P[C, T\*]$ is true. 
+#figure(caption:"Proof for Positive Property Counter Example Check")[
+  #ded-nat-boxed(stcolor: black, premises-and-conclusion: false, arr: (
+  ("", 0, $P^R [X, C] and L[X, C]$, "Premise"),
+  ("1", 0, $dom(R)[X, C] and forall T (R[X, C, T] -> P[C, T])$, [Definition of $P^R$]),
+  ("2", 0, $exists T (R[X, C, T])$, [Definition of $dom(R)$]),
+  ("3", 0, [Fresh $T\*$ s.t. $R[X, C, T\*]$], []),
+  ("2, 4", 0, $P[C, T\*]$, ""),
+  ("", 0, $L[X, C] and R[X, C, T\*] -> not s(C, T\*)$, [Symbolic Simulation \ Invariants]),
+  ("1, 3, 6", 0, $not s(C, T\*)$, ""),
+  ("4, 7", 0, $P[C, T\*] -> not s(C, T\*)$, ""),
+  ("8", 0,  $exists C, T (P[C, T] -> not s(C, T))$, ""),
+  ("9", 0, $not forall C forall T (P[C, T] -> s(C, T))$, "Property disproven")
+))
+] 
 
-The symbolic simulation invariant for negative properties says that $L[X, C] and R[X, C, T] -> not s(C, T)$. Since $L[X, C]$ and $R[X, C, T\*]$ are true, then $not s(C, T\*)$ is true. 
-
-By considering the example $(C, T\*)$, we have $exists C exists T (P(C, T) and not s(C, T)) equiv not forall C forall T (P(C, T) -> s(C, T))$ being true, so the property is disproven.
-
-It is practical to note that that the set of counter examples we find is ${(C, T) | exists X(R[X, C, T] and L[X, C] and P^R [X, C])}$ which is described by the image operation on $P^R and L$, $im(P^R and L, R)$.
+It is practical to note that that the set of counter examples we find is 
+$ {(C, T) | exists X(R[X, C, T] and L[X, C] and P^R [X, C])} $
+which is described by the image operation on $P^R and L$, $im(P^R and L, R)$.
 
 We can prove that the counter example analysis for negative properties is correct in a similar manner.
 
 
-
 = Partitioned Abstraction Relations <partitionedIndexingRelation>
-== Efficient Preimage Computation
+An important subclass of indexing relations that we consider is the partitioned indexing relation. A partitioned indexing relation is one that can be expressed in the following form: 
+
+$ R = and.big ("hexpr" -> "expr" and "lexpr" -> overline("expr")) $
+
+Where `expr` is either some *target variable* or an *expression of symbolic constants* while `hexpr` and `lexpr` are in terms of only the indexing variables.
+
+In the implementation, a partitioned abstraction relation is represented as a list of tuples of the form:
+
+#align(center)[`[(expr = targVar / Cexpr, hexpr, lexpr)]`]
+
+The automatic abstraction algorithm produces partitioned abstraction indexing relations. The manually constructed indexing relations that we use in our examples are also partitioned abstractions.
+
+This representation allows more efficient computation of preimages which are critical for allowing us to perform indexing transformations at scale.
+
+== Efficient Weak Preimage Computation
+We first normalise $R$ into 
+
+$ R = S[X, C] and U[X, T] $
+where $U[X, T] = and.big_(t_i in "TargVars") (h_i -> t_i and l_i -> overline(t_i)) $  
+
+We can then make several observations. 
+
+Firstly, $ dom(R)[X, C] = S and and.big_(i) overline(h_i and l_i) $
+
+Proof:
+$ dom(R)[X, C] &= exists T R[X, C, T]\
+               &= S[X, C] and exists T U[X, T]\
+               &= S[X, C] and and.big_i (exists t_i (h_i -> t_i and l_i -> overline(t_i))) \
+               &= S[X, C] and and.big_i (((h_i -> 1) and (l_i -> 0)) or ((h_i -> 0 and l_i -> 1)))\
+               &= S[X, C] and and.big_I (not l_i or not h_i)\
+               &= S and and.big_(i) overline(h_i and l_i) $
+
+Thus we are able to compute the domain of the indexing relation easily.
+
+Secondly, to compute the preimage of some guard $P[C, T]$, we let $R arrow.b P$ denote that the part of the indexing relation that mentions target variables present in $P$. Specifically, if $cal(F) = "FreeTargVars"(P)$ then 
+
+$ R arrow.b P = S[X, C] and and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) $
+
+We have that $P_R = dom(R) and P_(R arrow.b P)$
+
+Proof:
+$ P_R [X, C] &= exists T (R[X, C, T] and P[C, T])\
+      &= exists T (S[X, C] and and.big_(t_i in.not cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T])  \
+
+      &= S[X, C] and exists T_(not cal(F)) (and.big_(t_i in.not cal(F)) (h_i -> t_i and l_i -> overline(t_i)))\ 
+       &space space and exists T_(cal(F)) (and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T])\  
+
+      &= S[X, C] and exists T_(not cal(F)) (and.big_(t_i in.not cal(F)) (h_i -> t_i and l_i -> overline(t_i))) and exists T_(cal(F)) (and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)))\ 
+       &space space and S[X, C] and exists T_(cal(F)) (and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T]) \
+
+      &= S[X, C] and exists T (and.big_(t_i in "targVars") (h_i -> t_i and l_i -> overline(t_i)))\ 
+       &space space and exists T_(cal(F)) (S[X, C] and and.big_(t_i in cal(F)) (h_i -> t_i and l_i -> overline(t_i)) and P[C, T])\
+
+      &= S[X, C] and and.big_i (overline(h_i and l_i)) and P_(R arrow.b P)\
+
+      &= dom(R) and P_(R arrow.b P)
+$
+
+We can further consider common cases of $P$ that we will be constructing preimages for.
+
+$
+  P_R = cases(
+    dom(R) and P "if " cal(F) sect "TargVars" = emptyset, 
+    dom(R) and overline(l_i) "if " P = t_i,
+    dom(R) and overline(h_i) "if " P = overline(t_i),
+    dom(R) and P_(R arrow.b P) "otherwise"
+  )
+$
+
+Proof:
+
+If $cal(F) sect "TargVars" = emptyset$, $R arrow.b P = True$ so $ P_R = dom(R) and exists T (True and P[C]) = dom(R) and P[C] $
+
+If $P = t_i$, $R arrow.b P = (h_i -> t_i) and (l_i -> overline(t_i))$, so 
+$ P_R = dom(R) and exists t_i ((h_i -> t_i) and (l_i -> overline(t_i)) and t_i) = dom(R) and overline(l_i) $
+
+The $P = overline(t_i)$ case is analagous to the above.
+
 == Efficient Strong Preimage Computation
+Observe that 
+
+$ P^R &= dom(R) and overline(overline(P)_R)\
+      &= dom(R) and not (dom(R) and P_(R arrow.b overline(P)))\
+      &= dom(R) and not P_(R arrow.b overline(P)) 
+$
+
+This means that we don't need to do the final conjuction with $dom(R)$ when we compute a preimage if we are going to immediately be using the preimage to compute a strong preimage. 
+
+This represents an imporant speedup since we will be doing many strong preimage computations where computing $P_(R arrow.b overline(P))$ is easy (such as when $P = t_i$) but conjucting it with $dom(R)$ takes some time since $dom(R)$ can be complex.
 
 = Verification Under Environmental constraints <environmentalConstraints>
-== Index Over Care Predicate Cases via Indexing Relation Restriction
+Environmental constraints are constraints on the inputs to the circuit. They are of the form $J[C, T]$ to denote that we only need a constraint to hold if $J[C, T]$ is true. We call such a constraint a "care predicate".
+
+== Index Over Care Predicate Cases via Indexing Relation Restriction <indexRelationRestriction>
+Notice that one easy way to include environmental constraints is to simply add them to the guards of the output constraint. We can then check for the property holding under the enviromental constraint as described above. 
+
+However, this can lead to weak disagreements for abstractions#footnote([Notably, if we don't use abstraction then this should always work]) that merge cases covering $(C_1, T_1), (C_2, T_2)$ where $C_1, T_1 ent J$ but $C_2, T_2 nent J$, since we cannot assume that $J$ holds the $X, C$ indexing these cases. 
+
+This is referenced in @indexingTransformations where it is recommended to find indexing relations that exactly index cases in $J$ and not any in $not J$.
+
+To get such an indexing relation, one idea is to have a new indexing relation that is the conjuction of the original indexing relation and the input constraint. This will ensure that the indexing relation only ever indexes target variable assignments satisfying the care predicate. However, this can still lead to weak disagreements from the indexing relation being too coarse. 
+
+An additional way to mitigate the weak disagreements is to use the alternative checking method involving reversing the indexing, described earlier. This can avoid weak disagreements in some cases but can be more computationally expensive. 
+
 === Preserve Partitioned Indexing Relation by Conditioning Antecedent
+Using the above procedure together with a the partitioned abstraction relation unfortunately destroyes the partitioned structure, meaning we cannot directly apply the efficient preimage computations from @partitionedIndexingRelation. 
+
+However, we can employ an equivalent strategy where we first modify each BDD expression $E$ in the antecedent to the form $E' := (E and J) or overline(J) equiv J -> E$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $E$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants in @paramedIndexingRelFigure). We modify the guard of the output constraint to include $J$ and do the checking as described above. 
+
+Compared to restriction of the indexing relation, this approach will potentially cause some signals to be $top$, but only on indexing variable assignments that exclusively index $overline(J)$. This is fine since $P_R$ and $P^R$ not will contain such cases, thus not affecting our output checking procedure for either correctness or counter example analysis. Since the only indexing cases that we consider during analysis are those that index at least one case in $P$, this is equivalent to to restriction method described above.
+
+Since we are not modify the indexing relation, we can still use the efficient partitioned abstraction preimage operations.
+
 == Parametric Encoding
+#let al = $angle.l$
+#let ar = $angle.r$
+#let bp = $bold(p)$
+An alternative approach would be to use a parametric encoding @paramPaper of the input constraints. A parametric encoding using the `param` function to compute a substition of the input signals with new parameterisation variables.
+
+`param` takes a list of input constraints and a list of signals $s_1, s_2, ..., s_n$ and computes a vector of boolean functions $f_1, f_2, ..., f_n$ from new parameterisation variables $bp = {p_1, ..., p_k}$ where $k <= n$ for the purpose of substituting $s_i := f_i (bp)$. These functions satisfy the following two conditions:
+- (Soundness): $forall bp, al s_i := f_i (bp) | i in 1..n ar$ satifies the input constraints 
+- (Completeness): $forall al s_1, s_2, ..., s_n ar$  that satisfy the input constraints, there exists some $bp$ such that $s_i = f_i (bp)$ 
+
+There are two ways to apply this to deal with environmental constraints.
+
 === Parametric Encoding of Indexing Relations
+The first stategy is to apply the parametric encoding to transform an independently computed indexing relation. This was suggested in @indexingTransformations but not proven sound. Given a circuit, antecedent, input and output constraints, we will
+- Compute `param` on the input constraints
+- Substitute each BDD variable in the antecedent with the corresponding function from the parametric encoding
+- Compute an indexing relation, possibly via the automatic abstraction algorithm
+- Substitute each BDD variable in the automatic abstraction result with the corresponding function from the parametric encoding
+- Do the indexing transformation on the parameterised antecedent, and output constraints
+- Do the symbolic simulation and check whether the output constraint holds
+
+We prove this to be sound. 
+
+First we note that after we parameterise the antecedent, we still test all the cases $C, T$ such that $P[C, T]$ holds by the completeness of `param`. 
+
+We also note that the main base case for the symbolic simulation invariants still holds even though our input signals are now functions of the parameterisation variables. In this case, we can imagine that we are doing symbolic simulation on a bigger circuit with the param functions bolted onto the front, feeding the inputs of the regular circuit. The input signals $s$ are now replaced with the param functions $f_s$ and our base case argument will still hold.
+
+Furthermore, we also have the parameterised indexing relation satisfying the coverage condition:
+
+Assuming that the indexing relation $R[X, C, T]$ used satisfies the coverage condition $forall T forall C (P[C, T] -> exists X R[X, C, T])$ then the parameterised indexing relation $R'[X, C, T']$ will also satisfy the coverage condition, in terms of the new parameterisation variables, i.e. $forall T' forall C exists X R'[X, C, T']$ where $T'$ is the new parameterised input signals.
+
+#figure(caption:"Proof of Coverage Condition Satisfaction")[
+  #ded-nat-boxed(stcolor: black, premises-and-conclusion: false, arr: (
+  ("", 0, [Fresh $C, T'$], ""),
+  ("1", 0, [Let $T = f(T')$], [Where $f$ is the \ parametric encoding]),
+  ("2", 0, $P[C, T]$, [Soundness of param]),
+  ("", 0, $forall T forall C (P[C, T] -> exists X R[X, C, T])$, "Premise "),
+  ("3, 4", 0, $exists X R[X, C, T]$, ""),
+  ("5", 0, [Fresh $X\*$ s.t. $R[X\*, C, T]$], ""), 
+  ("", 0, [$R' = R[T\/f(T)]$], [Definition of $R'$]), 
+  ("2, 6, 7", 0, $R'[X\*, C, T']$, ""),
+  ("1, 8", 0, $forall T' forall C exists X R'[X, C, T']$, [Since $C, T'$ were \ arbitrary])
+))
+] 
+
+We further show that this approach is equivalent to the indexing relation restriction method described in @indexRelationRestriction.
+
 ==== Equivalence to Indexing Relation Restriction
+#figure()[
+  #image("paramed_indexing_rel.jpg")
+] <paramedIndexingRelFigure>
 === Parameterise Before Abstraction
 == Conditioned Properties
 
 = Experiments and Evaluation
-== Content-Addressable Memory
-== Multi-Input Maximum Circuit
+== Content-Addressable Memory <CAM_example>
+== Multi-Input Maximum Circuit <maxCircuit_example>
 
 = Conclusion
+== Future Work
 #pagebreak()
 #bibliography(("works.bib", "works2.yml"))
