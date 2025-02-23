@@ -1,0 +1,122 @@
+@Inbook{modelCheckingHandbook,
+    author="Melham, Tom",
+    editor="Clarke, Edmund M.
+    and Henzinger, Thomas A.
+    and Veith, Helmut
+    and Bloem, Roderick",
+    title="Symbolic Trajectory Evaluation",
+    bookTitle="Handbook of Model Checking",
+    year="2018",
+    publisher="Springer International Publishing",
+    address="Cham",
+    pages="831--870",
+    abstract="Symbolic trajectory evaluation is an industrial-strength formal hardware verification method, based on symbolic simulation, which has been highly successful in data-path verification, especially for microprocessor execution units. It is a `model-checking' method in the basic sense that properties, expressed in a simple temporal logic, are verified by (symbolic) exploration of formal models of sequential circuits. Its defining characteristic is that it operates by symbolic simulation over abstractions of sets of states that only partially delineate the circuit states in the set. These abstract state sets are ordered in a lattice by information content, based on a three-valued domain for values on circuit nodes (true, false, and don't know). The algorithm operates over families of these abstractions encoded by Boolean formulas, providing a flexible, specification-driven mechanism for partitioned data abstraction. We provide a basic introduction to symbolic trajectory evaluation and its extensions, and some details of how it is deployed in industrial practice. The aim is to get across the essence and value of the method in clear and accessible terms.",
+    isbn="978-3-319-10575-8",
+    doi="10.1007/978-3-319-10575-8_25",
+    url="https://doi.org/10.1007/978-3-319-10575-8_25"
+}
+
+ 
+ @INPROCEEDINGS{automaticAbstraction,
+    author={Adams, Sara and Bjork, Magnus and Melham, Tom and Seger, Carl-Johan},
+    booktitle={Formal Methods in Computer Aided Design (FMCAD'07)}, 
+    title={Automatic Abstraction in Symbolic Trajectory Evaluation}, 
+    year={2007},
+    volume={},
+    number={},
+    pages={127-135},
+    keywords={Lattices;Indexing;Boolean functions;Design automation;Computational modeling;Partitioning algorithms;Circuit simulation;Data structures;Encoding;Laboratories},
+    doi={10.1109/FAMCAD.2007.27}
+}
+
+@article{bddSurvey,
+    author = {Bryant, Randal E.},
+    title = {Symbolic Boolean manipulation with ordered binary-decision diagrams},
+    year = {1992},
+    issue_date = {Sept. 1992},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {24},
+    number = {3},
+    issn = {0360-0300},
+    url = {https://doi.org/10.1145/136035.136043},
+    doi = {10.1145/136035.136043},
+    abstract = {Ordered Binary-Decision Diagrams (OBDDs) represent Boolean functions as directed acyclic graphs. They form a canonical representation, making testing of functional properties such as satisfiability and equivalence straightforward. A number of operations on Boolean functions can be implemented as graph algorithms on OBDD data structures. Using OBDDs, a wide variety of problems can be solved through symbolic analysis. First, the possible variations in system parameters and operating conditions are encoded with Boolean variables. Then the system is evaluated for all variations by a sequence of OBDD operations. Researchers have thus solved a number of problems in digital-system design, finite-state system analysis, artificial intelligence, and mathematical logic. This paper describes the OBDD data structure and surveys a number of applications that have been solved by OBDD-based symbolic analysis.},
+    journal = {ACM Comput. Surv.},
+    month = sep,
+    pages = {293–318},
+    numpages = {26},
+    keywords = {Boolean algebra, Boolean functions, binary-decision diagrams, branching programs, symbolic analysis, symbolic manipulation}
+}
+
+
+@inproceedings{indexingTransformations,
+    author = {Melham, Thomas F. and Jones, Robert B.},
+    title = {Abstraction by Symbolic Indexing Transformations},
+    year = {2002},
+    isbn = {3540001166},
+    publisher = {Springer-Verlag},
+    address = {Berlin, Heidelberg},
+    abstract = {Symbolic indexing is a data abstraction technique that exploits the partially-ordered state space of symbolic trajectory evaluation (STE). Use of this technique has been somewhat limited in practice because of its complexity. We present logical machinery and efficient algorithms that provide a much simpler interface to symbolic indexing for the STE user. Our logical machinery also allows correctness assertions proved by symbolic indexing to be composed into larger properties, something previously not possible.},
+    booktitle = {Proceedings of the 4th International Conference on Formal Methods in Computer-Aided Design},
+    pages = {1–18},
+    numpages = {18},
+    series = {FMCAD '02}
+}
+
+@Inbook{originalSTE,
+    author="Hazelhurst, Scott
+    and Seger, Carl-Johan H.",
+    editor="Kropf, Thomas",
+    title="Symbolic trajectory evaluation",
+    bookTitle="Formal Hardware Verification: Methods and Systems in Comparison",
+    year="1997",
+    publisher="Springer Berlin Heidelberg",
+    address="Berlin, Heidelberg",
+    pages="3--78",
+    isbn="978-3-540-69577-6",
+    doi="10.1007/3-540-63475-4_1",
+    url="https://doi.org/10.1007/3-540-63475-4_1"
+}
+
+@INPROCEEDINGS{rSTE,
+  author={O'Leary, John and Kaivola, Roope and Melham, Tom},
+  booktitle={2013 Formal Methods in Computer-Aided Design}, 
+  title={Relational STE and theorem proving for formal verification of industrial circuit designs}, 
+  year={2013},
+  volume={},
+  number={},
+  pages={97-104},
+  keywords={Cognition;Integrated circuit modeling;Trajectory;Computational modeling;Boolean functions;Functional programming;Computer languages},
+  doi={10.1109/FMCAD.2013.6679397}
+}
+
+@ARTICLE{forte,
+  author={Seger, C.-J.H. and Jones, R.B. and O'Leary, J.W. and Melham, T. and Aagaard, M.D. and Barrett, C. and Syme, D.},
+  journal={IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems}, 
+  title={An industrially effective environment for formal hardware verification}, 
+  year={2005},
+  volume={24},
+  number={9},
+  pages={1381-1405},
+  keywords={Formal verification;Power system modeling;Data structures;Boolean functions;Logic programming;Automata;Hardware design languages;Large-scale systems;Functional programming;Specification languages;BDDs;formal verification;model checking;symbolic trajectory evaluation;theorem proving},
+  doi={10.1109/TCAD.2005.850814}
+}
+
+@inproceedings{voss,
+  title={VOSS - A Formal Hardware Verification System User''s Guide},
+  author={Carl-Johan H. Seger},
+  year={1993},
+  url={https://api.semanticscholar.org/CorpusID:61246413}
+}
+
+@INPROCEEDINGS{camIndexing,
+  author={Pandey, M. and Raimi, R. and Bryant, R.E. and Abadir, M.S.},
+  booktitle={Proceedings of the 34th Design Automation Conference}, 
+  title={Formal Verification Of Content Addressable Memories Using Symbolic Trajectory Evaluation}, 
+  year={1997},
+  volume={},
+  number={},
+  pages={167-172},
+  keywords={Formal verification;Associative memory;Cams;Computer aided manufacturing;CADCAM;Encoding;Circuits;Microprocessors;Permission;Modems},
+  doi={10.1109/DAC.1997.597138}}

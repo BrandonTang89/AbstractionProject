@@ -443,7 +443,7 @@ The soundness of the above procedure can be seen mostly as the same as the regul
 
 However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, Jasper Gold allows us to apply param on the other input signals and leave the symbolic constants as is.
 
-=== Conditioned Output Constraints
+== Conditioned Output Constraints
 A last way we can deal with input constraints is to just build them into the SystemVerilog Assertions directly as conditions on the input signals to the circuit. This means that we don't need to do anything special at all when we run the symbolic simulation. However, if we are using the input constraints to case split on the possible inputs, we will need to programmtically modify the SystemVerilog Assertions since it would be impractical to do that manually for each environmental constraint
 
 = Examples
