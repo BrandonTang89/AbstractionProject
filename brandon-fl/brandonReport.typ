@@ -136,10 +136,10 @@ Since then, a variant of STE known as relational STE (rSTE) @rSTE that allows fo
 This project thus reinvents theory for rSTE and brings it to the modern day in JasperGold.
 
 
-== Contribution
+== Contributions
 We reinvent the theory of rSTE, providing a procedure for incorporating symbolic indexing into the rSTE workflow via indexing transformations. We provide proofs of soundness for the procedure of indexing transformations and interpretations of the simulation outputs to derive proofs and counterexamples.
 
-We provide new proofs and formal descriptions for efficient preimage computations on a subclass of indexing relations known as partitioned indexing relations that extends the existing technique by incorporates symbolic constants @automaticAbstraction.
+We provide new proofs and formal descriptions for efficient preimage computations on a subclass of indexing relations known as partitioned indexing relations that extends the existing technique by incorporates symbolic constants mentioned in @automaticAbstraction.
 
 We formulate theory for dealing with environmental constraints in rSTE using ideas from @indexingTransformations but updated to consider partitioned indexing relations with symbolic constants.
 
@@ -531,7 +531,7 @@ This means that we don't need to do the final conjuction with $dom(R)$ when we c
 
 This represents an imporant speedup since we will be doing many strong preimage computations where computing $P_(R arrow.b overline(P))$ is easy (such as when $P = t_i$) but conjucting it with $dom(R)$ takes some time since $dom(R)$ can be complex.
 
-= Verification Under Environmental constraints <environmentalConstraints>
+= Verification Under Environmental Constraints <environmentalConstraints>
 Environmental constraints are constraints on the inputs to the circuit. They are of the form $J[C, T]$ to denote that we only need a constraint to hold if $J[C, T]$ is true. We call such a constraint a "care predicate".
 
 == Index Over Care Predicate Cases via Indexing Relation Restriction <indexRelationRestriction>
@@ -550,7 +550,7 @@ Using the above procedure together with a the partitioned abstraction relation u
 
 However, we can employ an equivalent strategy where we first modify each BDD expression $E$ in the antecedent to the form $E' := (E and J) or overline(J) equiv J -> E$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $E$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants in @paramedIndexingRelFigure). We modify the guard of the output constraint to include $J$ and do the checking as described above. 
 
-Compared to restriction of the indexing relation, this approach will potentially cause some signals to be $top$, but only on indexing variable assignments that exclusively index $overline(J)$. This is fine since $P_R$ and $P^R$ not will contain such cases, thus not affecting our output checking procedure for either correctness or counter example analysis. Since the only indexing cases that we consider during analysis are those that index at least one case in $P$, this is equivalent to to restriction method described above.
+Compared to restriction of the indexing relation, this approach will potentially cause some signals to be $top$, but only on indexing variable assignments that exclusively index $overline(J)$. This is fine since $J_R$ and $J^R$ not will contain such cases, thus not affecting our output checking procedure for either correctness or counter example analysis. Since the only indexing cases that we consider during analysis are those that index at least one case in $J$, this is equivalent to to restriction method described above.
 
 Since we are not modify the indexing relation, we can still use the efficient partitioned abstraction preimage operations.
 
@@ -558,15 +558,17 @@ Since we are not modify the indexing relation, we can still use the efficient pa
 #let al = $angle.l$
 #let ar = $angle.r$
 #let bp = $bold(p)$
-An alternative approach would be to use a parametric encoding @paramPaper of the input constraints. A parametric encoding using the `param` function to compute a substition of the input signals with new parameterisation variables.
+An alternative approach would be to use a parametric encoding @paramPaper of the input constraints. A parametric encoding using the `param` function to compute a substition of the input signals with functions of new parameterisation variables.
 
 `param` takes a list of input constraints and a list of signals $s_1, s_2, ..., s_n$ and computes a vector of boolean functions $f_1, f_2, ..., f_n$ from new parameterisation variables $bp = {p_1, ..., p_k}$ where $k <= n$ for the purpose of substituting $s_i := f_i (bp)$. These functions satisfy the following two conditions:
 - (Soundness): $forall bp, al s_i := f_i (bp) | i in 1..n ar$ satifies the input constraints 
-- (Completeness): $forall al s_1, s_2, ..., s_n ar$  that satisfy the input constraints, there exists some $bp$ such that $s_i = f_i (bp)$ 
+- (Completeness): $forall al s_1, s_2, ..., s_n ar$  that satisfy the input constraints, there exists some $bp$ such that $s_i = f_i (bp)$
+
+The intention of symbolic constants are such that they should not be abstracted or replaced, thus in our analysis of parametric encoding, we will assume that the symbolic constants are not part of the environmental constraint and thus not passed into `param`.
 
 There are two ways to apply this to deal with environmental constraints.
 
-=== Parametric Encoding of Indexing Relations
+=== Parametric Encoding of Indexing Relations <paramedIndexingRel>
 The first stategy is to apply the parametric encoding to transform an independently computed indexing relation. This was suggested in @indexingTransformations but not proven sound. Given a circuit, antecedent, input and output constraints, we will
 - Compute `param` on the input constraints
 - Substitute each BDD variable in the antecedent with the corresponding function from the parametric encoding
@@ -577,20 +579,20 @@ The first stategy is to apply the parametric encoding to transform an independen
 
 We prove this to be sound. 
 
-First we note that after we parameterise the antecedent, we still test all the cases $C, T$ such that $P[C, T]$ holds by the completeness of `param`. 
+  First we note that parameterising the antecedent is equivalent to bolting on the parameterisation functions onto each input to form a larger circuit. We can see that for each $C, T$ such that $J[C, T]$ holds, we will have some $C, T'$ that maps to it by the completeness of `param`. 
 
-We also note that the main base case for the symbolic simulation invariants still holds even though our input signals are now functions of the parameterisation variables. In this case, we can imagine that we are doing symbolic simulation on a bigger circuit with the param functions bolted onto the front, feeding the inputs of the regular circuit. The input signals $s$ are now replaced with the param functions $f_s$ and our base case argument will still hold.
+We also note that the main base case for the symbolic simulation invariants still holds even though our input signals are now functions of the parameterisation variables. The input signals $s$ are now replaced with the param functions $f_s$ and our base case argument will still hold. This means that the symbolic simulation invariants will still hold.
 
 Furthermore, we also have the parameterised indexing relation satisfying the coverage condition:
 
-Assuming that the indexing relation $R[X, C, T]$ used satisfies the coverage condition $forall T forall C (P[C, T] -> exists X R[X, C, T])$ then the parameterised indexing relation $R'[X, C, T']$ will also satisfy the coverage condition, in terms of the new parameterisation variables, i.e. $forall T' forall C exists X R'[X, C, T']$ where $T'$ is the new parameterised input signals.
+Assuming that the indexing relation $R[X, C, T]$ used satisfies the coverage condition $forall T forall C (J[C, T] -> exists X R[X, C, T])$ then the parameterised indexing relation $R'[X, C, T']$ will also satisfy the coverage condition, in terms of the new parameterisation variables, i.e. $forall T' forall C exists X R'[X, C, T']$ where $T'$ is the new parameterised input signals.
 
 #figure(caption:"Proof of Coverage Condition Satisfaction")[
   #ded-nat-boxed(stcolor: black, premises-and-conclusion: false, arr: (
   ("", 0, [Fresh $C, T'$], ""),
   ("1", 0, [Let $T = f(T')$], [Where $f$ is the \ parametric encoding]),
-  ("2", 0, $P[C, T]$, [Soundness of param]),
-  ("", 0, $forall T forall C (P[C, T] -> exists X R[X, C, T])$, "Premise "),
+  ("2", 0, $J[C, T]$, [Soundness of param]),
+  ("", 0, $forall T forall C (J[C, T] -> exists X R[X, C, T])$, "Premise "),
   ("3, 4", 0, $exists X R[X, C, T]$, ""),
   ("5", 0, [Fresh $X\*$ s.t. $R[X\*, C, T]$], ""), 
   ("", 0, [$R' = R[T\/f(T)]$], [Definition of $R'$]), 
@@ -599,20 +601,171 @@ Assuming that the indexing relation $R[X, C, T]$ used satisfies the coverage con
 ))
 ] 
 
+The symbolic simulation invariants together with the coverage condition are sufficient premises for our proof of the output checking procedure to hold.
+
+When considering the efficiency of this method, we note that destroys the parttioned structure of the indexing relation, meaning we cannot use the efficient preimage computations from @partitionedIndexingRelation.
+
 We further show that this approach is equivalent to the indexing relation restriction method described in @indexRelationRestriction.
 
 ==== Equivalence to Indexing Relation Restriction
 #figure()[
   #image("paramed_indexing_rel.jpg")
 ] <paramedIndexingRelFigure>
+
+With careful observation, we note that the indexing cases that are included in the strong preimage operation on the antecedent are actually the same whether we are parameterising the indexing relation or restricting the indexing relation to the environmental constraint. Suppose we are taking the strong preimage of target variable $a$. In either case, we only consider the indexing cases that at least map to one target variable assignment that satisfies $J and a$, and doesn't index any cases that satisfy $J and overline(a)$.
+
+Furthermore 
+
+$ dom(R') = {X, C | exists T' R'[X, C, T']} = {X, C | exists T (P[C, T] and R[X, C, T])} = J_R $
+
+Both of them are going to the set of cases that index into at least one case that satisfies the input constraint. As such the output checks will be the same for both methods.
+
+This means that both methods are actually equivalent, i.e. will produce the same results (proven, disproven or unproven). 
+
+Since the indexing relation restricttion is equivalent to the more efficient antecedent conditioning, this parametric method is also equivalent to that. Given the better efficiency of the method of conditioning the antecedent, that is preferable in practice. 
+
 === Parameterise Before Abstraction
+While the first strategy of using `param` is not any more effective than the restriction methods, our second strategy is likely to be more effective.
+
+We will do the parameterisation first and then build an indexing relation on the circuit with the param functions bolted onto the front of the circuit, with the inputs of the larger circuit being the parameterisation variables. This will compute a new indexing relation that is not easily found as a modification of the non-parameterised indexing relation like we did in the restriction methods.
+
+We then construct an indexing relation that satisfies the coverage condition over the parameterisation variables, possibly with the automatic abstraction algorithm. It is thus sound to use it for symbolic indexing. We modify the antecedent with the parameterisation functions substituted for the original signals and then transform them via the strong preimage under the indexing relation. We then run the symbolic simulation and then just check the output constraint without any guards. Soundness is similar to the proof in @paramedIndexingRel.
+
+However, that would make it difficult to use the symbolic constants effectively since we would need to specify that in terms of the new input signals from the param substitution. If the input constraints don't involve the signals that were meant to be the symbolic constants, we can just param the rest of the inputs and then use the symbolic constants as is.
+
 == Conditioned Properties
+A last idea is to move the environmental condition down to the SVA property level, adding conditions on the inputs to each SVA property. 
+
+However, this is equivalent to conditioning the output constraints with $J$, leading to the same possible issues of weak disagreements as described in @indexRelationRestriction.
+
+Furthermore, if we are using the input constraints to case split on the possible inputs, we will need to programmtically modify the SVA properties since it would be impractical to do that manually.
 
 = Experiments and Evaluation
-== Content-Addressable Memory <CAM_example>
+== Content-Addressable Memory (CAM) <CAM_example>
+We illustrate the effectiveness of symbolic simulation with symbolic indexing on a stripped down version of a CAM. 
+
+The CAM stores a fixed number of entries $N$, each being an integer of length $D$ bits. The CAM also takes in a query of length $D$ bits on each clock cycle and will output on a boolean wire whether the query matches with any of its entries. This wire is called the `hit` since it is high if there is a hit and low otherwise.
+
+On each cycle our CAM will compare the query with each of the entries in parallel and take a logical OR of all the comparisons to get the `hit` value. The specification of our CAM does a similar operations, except it compares each entry with the query in sequence, doing many logical ORs in series to check for a hit.
+
+Our property is that the specification and the circuit agree on the `hit` value.
+
+=== Manual Indexing Relation
+#let ch = "ch"
+#let bch = $bold(ch)$
+#let em = "em"
+#let EM = "EM"
+#let bem = $bold(em)$
+#let bEM = $bold(EM)$
+#let bq = $bold(q)$
+#let mem = "mem"
+#let bmem = $bold(mem)$
+We construct a partitioned indexing relation manually that correctly provides symbolic indexing for the CAM to be verified via symbolic simulation with reference to @camIndexing.
+
+The indexing relation encodes all the different ways that `hit` can be high or low. We will use the following indexing variables to effectively do case splitting:
+- $h$: Boolean variable
+  - Whether or not the `hit` wire should be high in the case being considered
+- $bch$: Vector of $log_2 N$ boolean variables
+  - $bch$ is interpreted as an integer which encodes which entry in the CAM should match with the query in the case being considered, only relevant if $h$ is high.
+- $bEM$: Matrix of size $N$ by $log_2 D$ boolean variables
+  - Each $bem_i: em_(i)[0], em_(i)[1]..., em_(i)[log_2 D - 1]$ is interpreted as an integer to represent the bit of the $i$th entry of the CAM that should be different from the query, only relevant if $h$ is low.
+
+We also have the query $bq$ as a vector of symbolic constants, with length $D$.
+
+We will add the following conjucts together to get the indexing relation:
+
+A conjuct that covers cases where the `hit` should be high:
+$ forall i forall j: h and (bch = i) => (bmem[i][j] = bq[j]) $
+
+A conjuct that covers cases where the `hit` should be low:
+
+$ forall i forall j: overline(h) and (bem_i = j) => (bmem[i][j] != bq[j]) $
+
+Where $0 <= i < N$ and $0 <= j < D$.
+
+Equality between boolean vector encoded variables and the loop variables $i$ or $j$ are represented by a big conjuction of the individual bits or their negations to ensure the bit pattern formed from the whole vector matches that of the integer being compared to. 
+
+Equality between target variables $t$ and indexing/symbolic constants $x$ is done by adding 2 tuples of the form 
+- `(t, (premise AND x), false)`
+- `(NOT t, false, (premise AND NOT x))`
+to the indexing relation. This means that if the premise (such as $h and (bch = i)$) holds, then $t$ will need to take the value of $x$. We can create analagous tuples for inequalities between target variables and indexing variables.
+
+Observe that coverage will be achieved since for any given values of the query and the entries of the CAM $bmem$, we will be able to find appropriate values for $h, bch, bem$ that will satisfy the indexing relation.
+
+Observe that this approach has $1 + log_2 N + N log_2 D + D$ indexing variables and symbolic constants. This is exponentially less than the $N D$ variables that are considered without symbolic indexing. Considering this also lets us know that we should see maximum gain in efficiency of proving wider entry CAMs rather than CAMs with more entries.
+
+=== Results
+
+
 == Multi-Input Maximum Circuit <maxCircuit_example>
+We also showcase the method on a maximum circuit. The maximum circuit takes $N$ inputs, each of length $D$, and every clock cycle, will output the maximum of all the inputs. This is implemented as a binary tree of 2-input maximum operations between tree nodes, that eventually leads to the output at the root of the tree.
+
+Rather than using a specification that does the same computation in a different way, this circuit has a very natural relational specification that consists of two properties:
+- Containment Property: The output of the circuit is one of the input values
+- Bounding Property: The output of the circuit is at least as large as all the input values
+
+=== Manual Indexing Relation
+Like for the CAM, we construct a partitioned indexing relation that will exponentially reduce the number of BDD variables needed for symbolic simulation.
+
+We have the following indexing variables:
+#let bt = $bold(t)$
+#let bs = $bold(s)$
+#let bd = $bold(d)$
+#let bins = $bold("ins")$
+#let by = $bold(y)$
+
+- $bt$: Vector of $D$ boolean variables
+ - $bt$ represents the target output of the maximum circuit. I.e. all cases that lead to the circuit producing $x$ will be covered by some indexing cases where $bt = x$
+- $bd$: Matrix of size $N$ by $log_2 D + 1$ boolean variables
+  - $bd_i: bd_i [0], ..., bd_i [log_2 D]$ encodes an integer that represents the number of most significant bits of the $i$th input will be the same as the corresponding bits of $bt$ before the critical bit of $i$ which will be low in $bins[i]$ but high in $bt$.
+
+We first write our required conjucts in a manner that is easy to reason about, then convert them into a form that we can efficient encode as a partitioned indexing relation. Similarly, we will be having a few conjucts that we will merge together:
+
+A conjuct that ensures that at least one entry will completely match the target output:
+$ or.big_(i = 0)^(n-1) (bd_i = D) $
+
+A conjuct that ensures the most significant bits of each input match with the target output:
+$ forall i: and.big_(j = D - bd_i)^(D-1) (bins[i][j] = t[j]) $
+
+A conjuct to ensure the critical bit for each entry is high in the target output but low in the input:
+$ forall i: bd_i < D => (bins[i][D-bd[i]-1] = 0) and (bt[D-bd[i]-1] = 1) $
+
+Where $0 <= i < N$.
+
+We point out there is no restriction of the bits less significant than the critical bits in each input since their value will not affect the output, helping to achieve abstraction.
+
+To actually form the partitioned indexing relation, we need to consider exactly the cases that we wish to force specific target variables to be high or low. This entail rewriting the second and third conjuct.
+
+By rearranging $D - bd_i <= j$ to get $D - j <= bd_i$, we can rewrite the second conjuct as:
+
+$ forall i forall j: (D - j <= bd_i) => (bins[i][j] = bt[j]) $
+
+Where $0 <= j < D$.
+
+By introducing $j$, we can also rewrite the third conjuct as:
+$ forall i forall j: (D - 1 - j = bd_i) => (bins[i][j] = 0) and (t[j] = 1) $
+
+Constructing the actual partitioned indexing relation from the above rules follows a similar process to that done for the CAM. The only new formula is $by >= x$ for some boolean encoded variable $y$ and a loop variable $x$. To construct such a formula, we consider binary representation of $x$ and use the following structural recurence:
+
+$ 
+"geq"((by_0, ..., by_(n-1)), (x_0, ..., x_(n-1))) &:= (by_(n-1) > x_(n-1)) or "geq"((by_0, ..., by_(n-2)), (x_0, ..., x_(n-2)))  \
+&equiv (by_(n-1) and not x_(n-1)) or "geq"((by_0, ..., by_(n-2)), (x_0, ..., x_(n-2)))\
+"geq"((by_0), (x_0)) &:= (by_0 = 1) or (x_0 = 0)
+$
+
+This takes $D + N log_2 D + N$ variables, exponentially less than the $N D$ variables that are considered for symbolic simulation without symbolic indexing.
+
+Furthernote that only the 2nd and 3rd conjucts mention target variables. The first conjuct actually serves as a means of restricting the domain of our indexing relation ones where at least one $bd_i$ is equal to $D$. Compared to the manual indexing of the CAM, the domain in this case is not just $True$.
+
+=== Results
 
 = Conclusion
+We have reinvented the theory of rSTE and implemented symbolic indexing via indexing transformations for rSTE in JasperGold. We have shown that the method can be more effective than running symbolic simulations without any symbolic indexing.
+
 == Future Work
+An area of major significance would be to develop practical algorithms for creating indexing relations specific to given environmental constraints. These indexing relations should index only into cases that satisfy the environmental constraints and be refined enough to avoid weak disagreements.
+
+Automatic abstraction is critical to be able to apply rSTE widely. The speed of the automatic abstraction algorithm developed in the companion project is currently a limiting factor in efficient rSTE proofs. Furthermore, overabstraction is likely to be a problem in real worl usage thus work on refinement of the automatically discovered indexing relations such as in @abstractionDiscoveryAndRefinement would make the rSTE much more usable.
+
 #pagebreak()
 #bibliography(("works.bib", "works2.yml"))
