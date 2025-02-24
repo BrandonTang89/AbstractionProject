@@ -8,7 +8,7 @@
   )
 )
 #set text(
-  font: "Libertinus Serif",
+  font: "New Computer Modern",
   size: 11pt,
 )
 
@@ -18,23 +18,26 @@
 )
 
 // Title Page
-#let author ="(Brandon Tang)"
+#let author ="1075201"
 #let title = "Indexing Transformations for
 Relational Symbolic Trajectory Evaluation"
 
 #align(center)[
-  #block(text(weight: 600, 1.75em, title))
+  #block(text(weight: "bold", 1.75em, title))
   #v(1em, weak: true)
-  #text(weight: 500, 1.4em, author)
+  #text(weight: 500, 1.5em, author)
   #v(1em, weak: true)
-  #text(weight: 500, 1.1em, "Computer Science (Part B)")
+
+  #box(height: 70%)
+
+  #text(weight: 500, 1.1em, "A dissertation submitted for the degree of \n")
+  #text(weight: 500, 1.1em, style: "italic", "Computer Science (Part B)")
 
   #v(1em, weak: true)
   #text(weight: 500, 1.1em, "Trinity 2025")
+  #v(3em, weak: true)
 
-  #v(1em, weak: true)
   #text(weight: 500, 1.1em, "Word Count: ?")
-
 ]
 
 
@@ -53,6 +56,7 @@ Relational Symbolic Trajectory Evaluation"
 #counter(page).update(1)
 
 = Abstract
+Symbolic Trajectory Evaluation (STE) is a symbolic model checking method for hardware verification that is able to exploit abstraction via symbolic indexing to perform verification efficiently. Relational STE is a modification of the STE method to allow for arbitary relational properties to be verified. This project reinvents the theory of symbolic indexing transformations to allow rSTE to exploit symbolic indexing abstractions in a manner similar to regular STE. We further update existing theory for efficient indexing transformations on a subclass of abstractions called partitioned abstractions to deal with symbolic constants and discuss methods for dealing with environmental constraints. These procedures are implemented in the industry standard verification tool JasperGold and our expriments show them to be efficient on scalable example circuits compared to symbolic simulation without symbolic indexing.
 
 #pagebreak()
 
@@ -81,8 +85,24 @@ The core idea of STE is doing circuit simulation over a 3-valued domain of "true
 
 #figure(
   caption: "3-valued excitation function for AND gate"
-)[#table(
-  columns: (auto, auto, auto, auto),
+)[
+  #set table(
+  stroke: (x, y) => {
+    if y == 0 {
+      (bottom: 0.7pt + black)
+    }
+    if x == 0 {
+      (right: 0.7pt + black)
+    }
+  },
+  align: (x, y) => (
+    if x > 0 { center }
+    else { left }
+  )
+)
+
+  #table(
+  columns: 4,
   inset: 10pt,
   align: horizon,
   table.header(
@@ -98,28 +118,56 @@ We can use this 3-valued simulation to observe behaviours of circuits on groups 
 
 Furthermore, rather than doing simulation of only 1 concrete instance of 3-valued inputs at once, we can make the simulator work symbolically to do multiple 3-valued simulations at once. In the case of basic boolean simulation, we could start by assigning a variable to each input and then propagate these values through the circuit, building up a propositional formula at each node that represents the truth value of the circuit node. 
 
-For our 3-valued simulation, we do this symbolic simulation using a pair of boolean formulae over "indexing variables" on each circuit node. For each node, these are called the "high" and "low" expressions and have the following semantics.#footnote([This implementation strategy is the modern one implemented in JasperGold. The  legacy literature had different interpretations for the two expressions.])
-- If high expression is true, node will be high
-- If low expression is true, node will be low
-- If neither are true, then the node is X
-- If both are true, the node's value is inconsistent
+For our 3-valued simulation, we do this symbolic simulation using a pair of boolean formulae over "indexing variables" on each circuit node. For each node, these are called the "high" and "low" expressions and have the following semantics.#footnote([This implementation strategy is the modern one implemented in JasperGold. The  legacy literature@modelCheckingHandbook had different names and interpretations for the two expressions.])
+
+#figure(
+  caption: "Semantics of High and Low Expressions"
+)[
+    #set table(
+  stroke: (x, y) => {
+    if y == 0 {
+      (bottom: 0.7pt + black)
+    }
+    if x == 0 {
+      (right: 0.7pt + black)
+    }
+  },
+  align: (x, y) => (
+    if x > 0 { center }
+    else { left }
+  )
+)
+  
+  #table(
+  columns: (auto, auto, auto),
+  inset: 10pt,
+  align: horizon,
+    [], [$H_s = 0$], [$H_s = 1$],
+    [$L_s = 0$], [$s$ is X], [$s$ is $1$],
+    [$L_s = 1$], [$s$ is $0$], [s is $top$],
+)] 
+
+Where $top$ represents an inconsistency.
+
 
 The symbolic simulator propogates these high and low expressions through the circuit. For example, for an AND gate, on inputs with expressions $(h_A, l_A)$ and $(h_B, l_B)$, the output produced would be $(h_A and h_B, l_A or l_B)$.
 
 Symbolic simulators generally represent these expressions as reduced, ordered binary decision diagrams (BDDs) @bddSurvey that allow for efficient manipulation and thus simulation of the circuit. We term these pairs of BDDs as dual rail BDDs.
 
 As an example, consider verification of a 3-input AND gate. We would like to prove that $o = a and b and c$ for the inputs $a, b, c$. To use STE to verify the AND gate, we observe that rather than simulating all $2^3$ different boolean input assignments to the circuit, it is sufficient to simulate 4 cases under the 3-valued domain:
-- $p and q : a = b = c = 1 $
-- $overline(p) and overline(q): a = 0, b = c = X$
-- $overline(p) and q: b = 0, a = c = X$
-- $p and overline(q): c = 0, a = b = X$
+$ 
+p and q &: a = b = c = 1  \
+overline(p) and overline(q)&: a = 0, b = c = X \
+overline(p) and q &: b = 0, a = c = X \
+p and overline(q) &: c = 0, a = b = X 
+$
 
 We can enumerate these cases symbolically by assigning them propositional formulae in terms of indexing variables $p$ and $q$. Using propositonal formulae to do case splitting this way is termed as symbolic indexing.
 
 To apply this symbolic indexing scheme, we will set the dual rail inputs as follows:
-- $h_a:= p and q, l_a := overline(p) and overline(q)$
-- $h_b:= p and q, l_b := overline(p) and q$
-- $h_c:= p and q, l_c := p and overline(q)$
+$ h_a:= p and q, l_a := overline(p) and overline(q) \
+  h_b:= p and q, l_b := overline(p) and q \
+  h_c:= p and q, l_c := p and overline(q) $
 
 We then run the symbolic simulator, getting output $(h_o, l_o) = (p and q, overline(p) or overline(q))$. We can then conclude that the AND gate outputs true if and only if $a = b = c = 1$ and false otherwise, which is the desired property.
 
@@ -199,7 +247,7 @@ The indexing relation $R[X, C, T]$ can be interpreted as follows:
 - For each $X, C$, we cover the cases $T, C$ where $exists T R[X, C, T]$. 
 - Since the indexing relation can be a many to many relation, we can have multiple $T, C$ cases covered by a single $X, C$ case indexing and vice versa.
 
-Note that the indexing relation $R'[(X, C'), emptyset, (C, T)] = R[X, C, T] and and.big (C = C')$ that doesn't use symbolic constants is equivalent to $R[X, C, T]$ from the perspective of doing symbolic simulation and its associated operations (@preimage_operations). The use of symbolic constants does not improve the expressive power of indexing relations, but rathers simplifies them to achieve higher efficiency.
+Note that the indexing relation $R'[(X, C'), emptyset, (C, T)] = R[X, C, T] and and.big (C = C')$ that doesn't use symbolic constants is equivalent to $R[X, C, T]$ from the perspective of doing symbolic simulation and its associated operations (@preimage_operations). The use of symbolic constants does not improve the expressive power of indexing relations, but rathers simplifies them to achieve higher efficiency. When using the automatic abstraction algorithm in the companion paper, symbolic constants provide a crude way to prevent over abstraction since the algorithm will not abstract over them.
 
 === Preimage Operations <preimage_operations>
 We define operations involving the indexing relation here:
@@ -288,8 +336,9 @@ It is possible to not prove the property but also have no counter examples. This
 A benefit of the unrestricted output constraint form is that the property guards are extremely simple and thus have some nice properties related to the indexing transformation.
 
 To check the properties, we need to know the weak/strong preimage images of the guards. However, we have the following:
-- $True_R = True^R = dom(R)[X, C]$
-- $False_R = False^R = False$
+ $ True_R = True^R &= dom(R)[X, C]\ 
+   False_R = False^R &= False
+  $
 
 This means that we only need to take 1 single preimage operation to get the domain and use that for checking all the various properties written in this form. In fact, computing the domain of a partitioned indexing relation (@partitionedIndexingRelation) is a very simple operation that will be described later.
 
@@ -537,20 +586,20 @@ Environmental constraints are constraints on the inputs to the circuit. They are
 == Index Over Care Predicate Cases via Indexing Relation Restriction <indexRelationRestriction>
 Notice that one easy way to include environmental constraints is to simply add them to the guards of the output constraint. We can then check for the property holding under the enviromental constraint as described above. 
 
-However, this can lead to weak disagreements for abstractions#footnote([Notably, if we don't use abstraction then this should always work]) that merge cases covering $(C_1, T_1), (C_2, T_2)$ where $C_1, T_1 ent J$ but $C_2, T_2 nent J$, since we cannot assume that $J$ holds the $X, C$ indexing these cases. 
+However, this can lead to weak disagreements for abstractions#footnote([Notably, if we don't use abstraction then this should always work]) that merge cases in $J$ and cases in $not J$ such as the green assignment in @paramedIndexingRelFigure, since we cannot assume that $J$ holds for the $X, C$ indexing these cases. 
 
 This is referenced in @indexingTransformations where it is recommended to find indexing relations that exactly index cases in $J$ and not any in $not J$.
 
-To get such an indexing relation, one idea is to have a new indexing relation that is the conjuction of the original indexing relation and the input constraint. This will ensure that the indexing relation only ever indexes target variable assignments satisfying the care predicate. However, this can still lead to weak disagreements from the indexing relation being too coarse. 
+To get such an indexing relation, one idea is to have a new indexing relation that is the conjuction of the original indexing relation and the input constraint. This will ensure that the indexing relation only ever indexes target variable assignments satisfying the care predicate, allowing the green assignment to be included in the strong preimage of $a$ in @paramedIndexingRelFigure. However, this can still lead to weak disagreements from the indexing relation being too coarse. 
 
 An additional way to mitigate the weak disagreements is to use the alternative checking method involving reversing the indexing, described earlier. This can avoid weak disagreements in some cases but can be more computationally expensive. 
 
 === Preserve Partitioned Indexing Relation by Conditioning Antecedent
 Using the above procedure together with a the partitioned abstraction relation unfortunately destroyes the partitioned structure, meaning we cannot directly apply the efficient preimage computations from @partitionedIndexingRelation. 
 
-However, we can employ an equivalent strategy where we first modify each BDD expression $E$ in the antecedent to the form $E' := (E and J) or overline(J) equiv J -> E$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $E$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants in @paramedIndexingRelFigure). We modify the guard of the output constraint to include $J$ and do the checking as described above. 
+However, we can employ an equivalent strategy where we first modify each BDD expression $E$ in the antecedent to the form $E' := (E and J) or overline(J) equiv J -> E$. We can then do the strong preimage computations, allowing us to only consider the indexing cases we know $E$ to be true when the care predicate is true (corresponding to those cases that map exclusively to the bottom left 3 quadrants the $T,C$ space of @paramedIndexingRelFigure). We modify the guard of the output constraint to include $J$ and do the checking as described above. 
 
-Compared to restriction of the indexing relation, this approach will potentially cause some signals to be $top$, but only on indexing variable assignments that exclusively index $overline(J)$. This is fine since $J_R$ and $J^R$ not will contain such cases, thus not affecting our output checking procedure for either correctness or counter example analysis. Since the only indexing cases that we consider during analysis are those that index at least one case in $J$, this is equivalent to to restriction method described above.
+Compared to restriction of the indexing relation, this approach will potentially cause some signals to be $top$, but only on indexing variable assignments that exclusively index $overline(J)$, such as the blue assignment in @paramedIndexingRelFigure. This is fine since $J_R$ and $J^R$ not will contain such cases, thus not affecting our output checking procedure for either correctness or counter example analysis. Since the only indexing cases that we consider during analysis are those that index at least one case in $J$, this is equivalent to to restriction method described above.
 
 Since we are not modify the indexing relation, we can still use the efficient partitioned abstraction preimage operations.
 
@@ -608,21 +657,21 @@ When considering the efficiency of this method, we note that destroys the partti
 We further show that this approach is equivalent to the indexing relation restriction method described in @indexRelationRestriction.
 
 ==== Equivalence to Indexing Relation Restriction
-#figure()[
-  #image("paramed_indexing_rel.jpg")
+#figure(caption: [Illustration of Indexing Relation and Parameterisation])[
+  #image("img/IndexingRelationWithParam.png")
 ] <paramedIndexingRelFigure>
 
-With careful observation, we note that the indexing cases that are included in the strong preimage operation on the antecedent are actually the same whether we are parameterising the indexing relation or restricting the indexing relation to the environmental constraint. Suppose we are taking the strong preimage of target variable $a$. In either case, we only consider the indexing cases that at least map to one target variable assignment that satisfies $J and a$, and doesn't index any cases that satisfy $J and overline(a)$.
+With careful observation, we note that the indexing cases that are included in the strong preimage operation on the antecedent are actually the same whether we are parameterising the indexing relation or restricting the indexing relation to the environmental constraint. Suppose we are taking the strong preimage of target variable $a$, we have that $a^R = (f_a)^(R')$. In either case, we only consider the indexing cases that at least map to one target variable assignment that satisfies $J and a$, and doesn't index any cases that satisfy $J and overline(a)$. Analysis is symmetric for taking the strong preimage of the negation of a target variable.
 
-Furthermore 
+Furthermore,
 
 $ dom(R') = {X, C | exists T' R'[X, C, T']} = {X, C | exists T (P[C, T] and R[X, C, T])} = J_R $
 
-Both of them are going to the set of cases that index into at least one case that satisfies the input constraint. As such the output checks will be the same for both methods.
+Both of them are going to the set of cases that index into at least one case in $J$. As such the output checks will be the same for both methods.
 
 This means that both methods are actually equivalent, i.e. will produce the same results (proven, disproven or unproven). 
 
-Since the indexing relation restricttion is equivalent to the more efficient antecedent conditioning, this parametric method is also equivalent to that. Given the better efficiency of the method of conditioning the antecedent, that is preferable in practice. 
+Since the indexing relation restriction is equivalent to the more efficient antecedent conditioning, this parametric method is also equivalent to that. Given the better efficiency of the method of conditioning the antecedent, that is a preferable method. 
 
 === Parameterise Before Abstraction
 While the first strategy of using `param` is not any more effective than the restriction methods, our second strategy is likely to be more effective.
@@ -643,6 +692,12 @@ Furthermore, if we are using the input constraints to case split on the possible
 = Experiments and Evaluation
 == Content-Addressable Memory (CAM) <CAM_example>
 We illustrate the effectiveness of symbolic simulation with symbolic indexing on a stripped down version of a CAM. 
+
+#figure(
+  caption: "Content-Addressable Memory (CAM)"
+)[
+  #image("img/CAM.png")
+]
 
 The CAM stores a fixed number of entries $N$, each being an integer of length $D$ bits. The CAM also takes in a query of length $D$ bits on each clock cycle and will output on a boolean wire whether the query matches with any of its entries. This wire is called the `hit` since it is high if there is a hit and low otherwise.
 
@@ -700,9 +755,21 @@ Observe that this approach has $1 + log_2 N + N log_2 D + D$ indexing variables 
 == Multi-Input Maximum Circuit <maxCircuit_example>
 We also showcase the method on a maximum circuit. The maximum circuit takes $N$ inputs, each of length $D$, and every clock cycle, will output the maximum of all the inputs. This is implemented as a binary tree of 2-input maximum operations between tree nodes, that eventually leads to the output at the root of the tree.
 
+#figure(
+  caption: "Multi-Input Maximum Circuit"
+)[
+  #image("img/maxCircuit.png")
+]
+
 Rather than using a specification that does the same computation in a different way, this circuit has a very natural relational specification that consists of two properties:
-- Containment Property: The output of the circuit is one of the input values
-- Bounding Property: The output of the circuit is at least as large as all the input values
+- Contained Property: The output of the circuit is one of the input values
+- Bounded Property: The output of the circuit is at least as large as all the input values
+
+#figure(
+  caption: "Maximum Circuit Specification Circuit"
+)[
+  #image("img/maxCircuitSpec.png")
+]
 
 === Manual Indexing Relation
 Like for the CAM, we construct a partitioned indexing relation that will exponentially reduce the number of BDD variables needed for symbolic simulation.
