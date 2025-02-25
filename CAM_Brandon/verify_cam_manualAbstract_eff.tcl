@@ -4,9 +4,9 @@
 # Includes Timing
 # Sets query as a symbolic constant
 # =====================================================================
-set DATA_WIDTH 5; # log d
+set DATA_WIDTH 2; # log d
 set ADDR_WIDTH 3; # log n
-set TEST_ITERATIONS 10
+set TEST_ITERATIONS 1
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
@@ -49,7 +49,7 @@ set ant_mem [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
     puts $ant
-    set ant_mem [merge_dual_rail_antecedent $ant_mem $ant]
+    set ant_mem [merge_dual_rail_antecedents $ant_mem $ant]
 }
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]

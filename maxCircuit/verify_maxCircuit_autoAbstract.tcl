@@ -44,7 +44,7 @@ set ant_ins [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "ins\[$i\]" [list 2]]
     puts $ant
-    set ant_ins [merge_dual_rail_antecedent $ant_ins $ant]
+    set ant_ins [merge_dual_rail_antecedents $ant_ins $ant]
 }
 
 set antv $ant_ins

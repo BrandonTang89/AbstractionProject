@@ -31,7 +31,7 @@ set max_property_tick [max_dict_values $properties]
 # === Set up Stimuli ===
 # Create initial un-abstracted stimuli
 set input_ticks [list 2 4]
-set antv [merge_dual_rail_antecedent \
+set antv [merge_dual_rail_antecedents \
     [create_dual_rail_antecedent a $input_ticks] \
     [create_dual_rail_antecedent b $input_ticks] \
     [create_dual_rail_antecedent c $input_ticks] \  
