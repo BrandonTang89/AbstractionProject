@@ -5,11 +5,12 @@
 // =====================================================================
 
 module cam_top #(
-    parameter DATA_LENGTH = 2,  // Length of the each data entry (should be a power of 2)
-    parameter ADDR_WIDTH = 2    // Width of the address bus (this means that the CAM stores 2^ADDR_WIDTH entries)
+    parameter DATA_LENGTH = 256,  // Length of the each data entry (should be a power of 2)
+    parameter ADDR_WIDTH = 6    // Width of the address bus (this means that the CAM stores 2^ADDR_WIDTH entries)
 )(
     input logic clk,                       // Clock signal
-    input logic q01, q02, q11, q12,
+    //input logic q01, q02, q11, q12,
+    input logic [DATA_LENGTH-1:0] query,    // Query value
     output logic hit                       // Hit signal (true if data is found, 1 cycle after trigger)
 );
 
@@ -36,7 +37,7 @@ module cam_top #(
         hit <= |match;  // Set hit if any match is found
     end
 
-    assign query[0] = q01 & q02;
-    assign query[1] = q11 & q12;
+    //assign query[0] = q01 & q02;
+    //assign query[1] = q11 & q12;
 
 endmodule

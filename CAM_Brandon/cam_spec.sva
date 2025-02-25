@@ -3,8 +3,8 @@
 // =====================================================================
 
 module cam_spec #(
-    parameter DATA_LENGTH = 2,
-    parameter ADDR_WIDTH = 2
+    parameter DATA_LENGTH = 256,
+    parameter ADDR_WIDTH = 6
 )(
     input logic clk,                       // Clock signal
     input logic [DATA_LENGTH-1:0] query,    // Query value
