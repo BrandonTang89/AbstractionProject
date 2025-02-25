@@ -43,12 +43,12 @@ set max_property_tick [max_dict_values $properties]
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
-set ant_mem [list]
+set ant_mem_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
-    puts $ant
-    set ant_mem [merge_dual_rail_antecedents $ant_mem $ant]
+    set ant_mem_list [lappend ant_mem_list $ant]
 }
+set ant_mem [eval merge_dual_rail_antecedents $ant_mem_list]
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $ant_mem] 
@@ -56,10 +56,12 @@ set query_variables [get_dual_rail_antecedent_variable_names $ant_query]
 
 # === Create indexing relation ===
 # set partition_abstraction [autoabstract spec.assert_next_hit_signal [VAR t0] [NOT [VAR t0]]]
+puts "Abstracting..."
 set abstraction_time [time {
     set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
 } $TEST_ITERATIONS ]
 
+puts "Transforming..."
 set transform_time [time {
     set index_rel [combine_abstractions $partition_abstraction]
     set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
@@ -75,6 +77,7 @@ assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
+puts "Evaluating..."
 set eval_time [time {
     # Create a sequence from tranformed stimuli
     set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
@@ -96,6 +99,7 @@ set eval_time [time {
 check_symsim -sequence $eval_seq -get [list next_hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
+puts "Checking..."
 set check_time [time {
     set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
     set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]

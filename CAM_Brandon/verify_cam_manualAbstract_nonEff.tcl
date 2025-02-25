@@ -87,12 +87,12 @@ set max_property_tick [max_dict_values $properties]
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
-set ant_mem [list]
+set ant_mem_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
-    puts $ant
-    set ant_mem [merge_dual_rail_antecedents $ant_mem $ant]
+    set ant_mem_list [lappend ant_mem_list $ant]
 }
+set ant_mem [eval merge_dual_rail_antecedents $ant_mem_list]
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
@@ -194,6 +194,7 @@ proc make_query_tagin {} {
     return $conjunct
 }
 
+puts "Abstracting..."
 set abstraction_time [time {
     set index_rel [AND [IMPLIES [VAR h] [make_cam_hit]] [IMPLIES [NOT [VAR h]] [make_cam_miss]] [make_query_tagin]]
 } $TEST_ITERATIONS ]
@@ -207,11 +208,13 @@ PR $index_rel
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
+puts "Transforming..."
 set transform_time [time {
     set transformed_ant_stimuli [strong_preimage_stim $antv $index_rel $bdd_variables]
 } $TEST_ITERATIONS ]
 
 
+puts "Evaluating..."
 set eval_time [time{
     # Create a sequence from tranformed stimuli
     set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
@@ -235,6 +238,7 @@ check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
+puts "Checking..."
 set check_time [time {
     set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
     set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]

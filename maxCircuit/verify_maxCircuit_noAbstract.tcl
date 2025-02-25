@@ -38,12 +38,12 @@ set max_property_tick [max_dict_values $properties]
 
 # === Set up Antecedent ===
 set input_ticks [list 2]
-set ant_ins [list]
+set ant_ins_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "ins\[$i\]" [list 2]]
-    puts $ant
-    set ant_ins [merge_dual_rail_antecedents $ant_ins $ant]
+    set ant_mem_list [lappend ant_ins_list $ant]
 }
+set ant_ins [eval merge_dual_rail_antecedents $ant_ins_list]
 
 set antv $ant_ins
 

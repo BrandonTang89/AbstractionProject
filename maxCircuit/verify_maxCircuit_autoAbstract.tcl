@@ -38,16 +38,17 @@ set max_property_tick [max_dict_values $properties]
 
 # === Set up Antecedent ===
 set input_ticks [list 2]
-set ant_ins [list]
+set ant_ins_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "ins\[$i\]" [list 2]]
-    puts $ant
-    set ant_ins [merge_dual_rail_antecedents $ant_ins $ant]
+    set ant_mem_list [lappend ant_ins_list $ant]
 }
+set ant_ins [eval merge_dual_rail_antecedents $ant_ins_list]
 
 set antv $ant_ins
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
+puts "Abstracting..."
 set abstraction_time [time {
     # set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]]]
     set partition_abstraction [autoabstract spec.boundsInput [VAR t_0] [NOT [VAR t_0]]]
@@ -63,6 +64,7 @@ set abstraction_time [time {
 set coverage [satisfiesCoveragePartitioned $partition_abstraction $bdd_variables]
 assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
+puts "Transforming..."
 set transform_time [time {
     set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
     set abstraction_S [lindex $normal_abstraction 0]
@@ -74,6 +76,7 @@ set transform_time [time {
     set transformed_ant_stimuli [strong_preimage_stim_part $antv $abstraction_T $dom $bdd_variables]
 } $TEST_ITERATIONS ]
 
+puts "Evaluating..."
 set eval_time [time {
     # Create a sequence from tranformed stimuli
     set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]

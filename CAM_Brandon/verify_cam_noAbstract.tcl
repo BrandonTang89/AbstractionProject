@@ -40,15 +40,16 @@ set max_property_tick [max_dict_values $properties]
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
-set ant_mem [list]
+set ant_mem_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
-    puts $ant
-    set ant_mem [merge_dual_rail_antecedents $ant_mem $ant]
+    set ant_mem_list [lappend ant_mem_list $ant]
 }
+set ant_mem [eval merge_dual_rail_antecedents $ant_mem_list]
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 
+puts "Evaluating..."
 set eval_time [time {
     # Create resolved sequence
     set antecedent_seq [check_symsim -sequence -create $antv -name my_sequence]
@@ -71,6 +72,7 @@ check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # Check the properties (since no abstraction we just need to check that the relevant proeprties are high at the required tick)
+puts "Checking..."
 set check_time [time {
     set prop_high [TRUE]
     set prop_low [FALSE]

@@ -93,6 +93,7 @@ set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -nam
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
 # Run the symbolic simulation
+puts "Evaluating..."
 set num_ticks [expr $max_property_tick + 2]
 set eval_out [check_symsim  -eval $model_id \
                             -resolved_sequence $resolved_seq_id \

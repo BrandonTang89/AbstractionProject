@@ -39,12 +39,12 @@ set max_property_tick [max_dict_values $properties]
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
-set ant_mem [list]
+set ant_mem_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
-    puts $ant
-    set ant_mem [merge_dual_rail_antecedents $ant_mem $ant]
+    set ant_mem_list [lappend ant_mem_list $ant]
 }
+set ant_mem [eval merge_dual_rail_antecedents $ant_mem_list]
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 
@@ -86,6 +86,7 @@ set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -nam
 set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq -name my_resolved_sequence]
 
 # Run the symbolic simulation
+puts "Evaluating..."
 set num_ticks [expr $max_property_tick + 2]
 set eval_out [check_symsim  -eval $model_id \
                             -resolved_sequence $resolved_seq_id \

@@ -2,9 +2,9 @@
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
 # Includes timing information
 # =====================================================================
-set DATA_WIDTH 2; # log d
-set ADDR_WIDTH 2; # log n
-set TEST_ITERATIONS 1
+set DATA_WIDTH 4; # log d
+set ADDR_WIDTH 4; # log n
+set TEST_ITERATIONS 3
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
@@ -41,12 +41,12 @@ set max_property_tick [max_dict_values $properties]
 set input_ticks [list 2]
 set ant_query [create_dual_rail_antecedent query [list 2]]
 
-set ant_mem [list]
+set ant_mem_list [list]
 for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
     set ant [create_dual_rail_antecedent "mem\[$i\]" [list 2]]
-    puts $ant
-    set ant_mem [merge_dual_rail_antecedents $ant_mem $ant]
+    set ant_mem_list [lappend ant_mem_list $ant]
 }
+set ant_mem [eval merge_dual_rail_antecedents $ant_mem_list]
 
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 
@@ -57,6 +57,7 @@ set query_variables [get_dual_rail_antecedent_variable_names $ant_query]
 ## START TIMING
 
 # === Create indexing relation === 
+puts "Abstracting..."
 set abstraction_time [time {
     set partition_abstraction [autoabstract next_hit [VAR t_0] [NOT [VAR t_0]] $query_variables]
 } $TEST_ITERATIONS ]
@@ -66,6 +67,7 @@ set abstraction_time [time {
 # assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 # === Indexing Transformation ===
+puts "Transforming..."
 set transform_time [time {
     set normal_abstraction [normalise_abstraction $partition_abstraction $bdd_variables]
     set abstraction_S [lindex $normal_abstraction 0]
@@ -76,7 +78,7 @@ set transform_time [time {
     set transformed_ant_stimuli [strong_preimage_stim_part $antv $abstraction_T $dom $bdd_variables]
 }  $TEST_ITERATIONS ]
 
-
+puts "Evaluating..."
 set eval_time [time {
     # Create a sequence from tranformed stimuli
     set antecedent_seq [check_symsim -sequence -create $transformed_ant_stimuli -name my_sequence]
@@ -99,6 +101,7 @@ check_symsim -sequence $eval_seq -get [list next_hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
+puts "Checking..."
 set check_time [time {
     set prop_high $dom
     set prop_low [FALSE]

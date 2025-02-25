@@ -1,4 +1,17 @@
 ## Testing Results for CAM
+### 
+Manual Indexing of the CAM with Partitioned Abstraction
+Time taken for Abstraction: 190808.0 microseconds per iteration
+Time taken for Transformation: 321678.0 microseconds per iteration
+Time taken for Evaluation: 6473.666666666667 microseconds per iteration
+Time taken for Checking: 4874.666666666667 microseconds per iteration
+Total Time: 523834.3333333334
+NUM_ENTRIES: 4
+DATA_LENGTH: 16
+
+
+
+
 ### 64 Entries of Size 8 Bits - 10 Iterations Each
 #### Manual Indexing of the CAM with Partitioned Abstraction
 - Time taken for Abstraction: 4048472.9 microseconds per iteration
