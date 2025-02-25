@@ -2,8 +2,8 @@
 # Symbolic simulation of the CAM with no abstraction
 ################################################################################
 
-set DATA_WIDTH 2; # log d
-set ADDR_WIDTH 2; # log n
+# set DATA_WIDTH 2; # log d
+# set ADDR_WIDTH 2; # log n
 set TEST_ITERATIONS 1
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
@@ -84,9 +84,8 @@ set check_time [time {
 }  $TEST_ITERATIONS ]
 
 # === Timing Information ===
-puts "No Indexing Symbolic Simulation of the CAM"
+puts "Symbolic Simulation of the CAM with no abstraction"
 puts "Eval time: $eval_time"
-
 puts "Check time: $check_time"
 puts "Total Time: [expr {[lindex $eval_time 0] + [lindex $check_time 0]}]"
 

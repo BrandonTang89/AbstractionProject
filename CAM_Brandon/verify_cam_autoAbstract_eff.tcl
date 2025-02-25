@@ -2,9 +2,9 @@
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
 # Includes timing information
 # =====================================================================
-set DATA_WIDTH 4; # log d
-set ADDR_WIDTH 4; # log n
-set TEST_ITERATIONS 3
+# set DATA_WIDTH 4; # log d
+# set ADDR_WIDTH 4; # log n
+set TEST_ITERATIONS 1
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]

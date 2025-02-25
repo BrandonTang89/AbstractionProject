@@ -2,8 +2,8 @@
 # Symbolic simulation of the MaximumCircuit with no abstraction
 ################################################################################
 
-set DATA_WIDTH 3; # log d
-set ADDR_WIDTH 6; # log n
+# set DATA_WIDTH 3; # log d
+# set ADDR_WIDTH 6; # log n
 set TEST_ITERATIONS 1
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
@@ -65,7 +65,6 @@ set eval_time [time {
 } $TEST_ITERATIONS ]
 
 # Visualise the simulation
-check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # Check the properties (since no abstraction we just need to check that the relevant proeprties are high at the required tick)

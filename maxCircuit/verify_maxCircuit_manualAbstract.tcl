@@ -1,8 +1,8 @@
 # =====================================================================
 # Verification of the MaxCircuit via a Indexing Transformation with a manually created indexing relation
 # =====================================================================
-set DATA_WIDTH 5; # log d
-set ADDR_WIDTH 2; # log n
+# set DATA_WIDTH 5; # log d
+# set ADDR_WIDTH 2; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 set TEST_ITERATIONS 1
