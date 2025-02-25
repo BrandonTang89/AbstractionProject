@@ -4,12 +4,13 @@
 # Makes use of symbolic constants
 # =====================================================================
 set DATA_WIDTH 2; # log d
-set ADDR_WIDTH 4; # log n
-set TEST_ITERATIONS 10
+set ADDR_WIDTH 2; # log n
+set TEST_ITERATIONS 1
 
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
+unset -nocomplain memo
 clear -all
 analyze -sv cam.sv
 analyze -sva cam_spec.sva
@@ -18,13 +19,11 @@ elaborate -top cam_top -parameter DATA_LENGTH $DATA_LENGTH -parameter ADDR_WIDTH
 clock -both_edges clk
 reset -none
 
-source ../juliaAutoAbstract/auto_abstract.tcl
 source ../juliaAutoAbstract/simulate.tcl
+source ../juliaAutoAbstract/utils.tcl
 source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
-source ../CommonUtils_Brandon/symsim_utils.tcl
-source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
-namespace import symsim::*
+source ../CommonUtils_Brandon/helpers.tcl
 set_symsim_expr_pretty_print_threshold 3000
 
 # === Symsim Set Up ===

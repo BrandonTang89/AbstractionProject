@@ -7,6 +7,7 @@ set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 set TEST_ITERATIONS 1
 
+unset -nocomplain memo
 clear -all
 analyze -sv maxCircuit.sv
 analyze -sva maxCircuitSpec.sva
@@ -15,11 +16,10 @@ elaborate -top max_circuit_top -parameter DATA_LENGTH $DATA_LENGTH -parameter AD
 clock -both_edges clk
 reset -none
 
-source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../juliaAutoAbstract/utils.tcl
 source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
 source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
-namespace import symsim::*
 set_symsim_expr_pretty_print_threshold 3000
 
 

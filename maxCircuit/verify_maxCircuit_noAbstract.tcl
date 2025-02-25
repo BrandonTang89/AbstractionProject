@@ -17,11 +17,11 @@ elaborate -top max_circuit_top -parameter DATA_LENGTH $DATA_LENGTH -parameter AD
 clock -both_edges clk
 reset -none
 
-source ../CommonUtils_Brandon/symsim_utils.tcl
+source ../juliaAutoAbstract/utils.tcl
 source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
-namespace import symsim::*
-set_symsim_expr_pretty_print_threshold 30
+source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
+set_symsim_expr_pretty_print_threshold 3000
 
 # === Symsim Set Up ===
 set model_id [check_symsim -model -create]

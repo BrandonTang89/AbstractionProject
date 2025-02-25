@@ -1,9 +1,0 @@
-jasperGold:
-  type: Web
-  url: https://www.cadence.com/en_US/home/tools/system-design-and-verification/formal-and-static-verification/jasper-verification-platform.html
-  title: Jasper RTL Apps
-
-vossII:
-  type: Web
-  url: https://github.com/TeamVoss/VossII
-  title: Voss II

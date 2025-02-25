@@ -1,6 +1,7 @@
 ######################################
 # Verification of simple circuit with automatic abstraction
 ######################################
+unset -nocomplain memo
 clear -all
 analyze -sv simple.sv
 analyze -sva simple_spec.sva
@@ -10,13 +11,11 @@ elaborate -top simple_top
 clock -both_edges clk
 reset -none
 
-source ../juliaAutoAbstract/auto_abstract.tcl
 source ../juliaAutoAbstract/simulate.tcl
+source ../juliaAutoAbstract/utils.tcl
 source ../CommonUtils_Brandon/autoabstraction_helpers_brandon.tcl
-source ../CommonUtils_Brandon/symsim_utils.tcl
-source ../CommonUtils_Brandon/helpers.tcl
 source ../CommonUtils_Brandon/symsim_helpers_brandon.tcl
-namespace import symsim::*
+source ../CommonUtils_Brandon/helpers.tcl
 set_symsim_expr_pretty_print_threshold 3000
 
 # === Symsim Set Up ===
