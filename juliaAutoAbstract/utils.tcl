@@ -1,13 +1,24 @@
 # === Common utilites ===
 
 source ../CommonUtils_Brandon/symsim_utils.tcl
-
+rename symsim::VAR ""
+rename symsim::NOT ""
 namespace import symsim::*
 
 proc IMPL {x y} {check_symsim -expression -implies $x $y}
 
 proc TC {sig} {
     return [check_symsim -expression -top_cofactor $sig]
+}
+
+proc VAR {v} {
+    memoize
+    check_symsim -expression -var $v
+}
+
+proc NOT {v} {
+    memoize
+    check_symsim -expression -not $v
 }
 
 proc is_VAR {sig {cut_points ""}} {
@@ -178,4 +189,24 @@ proc get_fanout_points {sig} {
 proc trim {s} {
     if {[string first \{ $s] != 0} { return $s }
     return [string range $s 1 [expr [string length $s] - 2]]
+}
+
+# https://wiki.tcl-lang.org/page/memoizing
+proc memoize {args} {
+    global memo
+    set cmd [info level -1]
+    set d [info level]
+    if {$d > 2} {
+        set u2 [info level -2]
+        if {[lindex $u2 0] eq {memoize}} {
+            return
+        }
+    }
+    if {[info exists memo($cmd)]} {
+        set val $memo($cmd)
+    } else {
+        set val [eval $cmd]
+        set memo($cmd) $val
+    }
+    return -code return $val
 }

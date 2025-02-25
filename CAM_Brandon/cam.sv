@@ -5,8 +5,8 @@
 // =====================================================================
 
 module cam_top #(
-    parameter DATA_LENGTH = 2,  // Length of the each data entry (should be a power of 2)
-    parameter ADDR_WIDTH = 2    // Width of the address bus (this means that the CAM stores 2^ADDR_WIDTH entries)
+    parameter DATA_LENGTH = 256,  // Length of the each data entry (should be a power of 2)
+    parameter ADDR_WIDTH = 6    // Width of the address bus (this means that the CAM stores 2^ADDR_WIDTH entries)
 )(
     input logic clk,                       // Clock signal
 
@@ -38,9 +38,11 @@ module cam_top #(
         hit <= |match;  // Set hit if any match is found
     end
 
+
     // Combinational logic to set the next_hit signal
     always_comb begin
         next_hit = |match;  // Set next_hit if any match is found
     end
+
 
 endmodule

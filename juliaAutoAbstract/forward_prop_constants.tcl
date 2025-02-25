@@ -4,7 +4,7 @@
 variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir utils.tcl]
 
-proc forward_prop {constants} {
+proc forward_prop_const {constants} {
     set result $constants
 
     # Stores if we're done; any operation that updates $result in this proc must set it true

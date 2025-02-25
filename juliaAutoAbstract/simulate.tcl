@@ -5,9 +5,11 @@ variable baseDir [file dirname [file normalize [info script]]]
 source [file join $baseDir utils.tcl]
 source [file join $baseDir names.tcl]
 source [file join $baseDir forward_prop_constants.tcl]
+source [file join $baseDir environmental.tcl]
 
 
 proc simulate_unit {sig cut_points} {
+    memoize
     if {[dict get [check_symsim -model -get_sig_info $sig] type] != "wire"} {
         error "can't simulate $sig : has state!"
         return
@@ -50,6 +52,8 @@ proc simulate_unit {sig cut_points} {
 }
 
 proc transitive_simulate {bdd {cut_points ""}} {
+    memoize
+
     if {![string is digit $bdd]} {
         # then we're dealing with a signal, rather than a BDD!
 
@@ -83,6 +87,8 @@ proc transitive_simulate {bdd {cut_points ""}} {
 #  'mux_full'       \- no constants; the switching input and both switched ones are wires
 # used to determine which case of the MUX abstraction to use
 proc bdd_mux_type {bdd} {
+    memoize
+
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
@@ -109,6 +115,8 @@ proc bdd_mux_type {bdd} {
 }
 
 proc bdd_mux_one_type {bdd} {
+    memoize
+    
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
@@ -150,6 +158,7 @@ proc bdd_mux_one_type {bdd} {
 #
 # the size of the output depends on the BDD ordering -- perhaps it's possible to find orderings that give maximal size somehow?
 proc find_big_ands {bdd needsinvert constants cut_points} {
+    memoize
 
     set inputs [TC $bdd]
     set var [lindex $inputs 0]
@@ -169,7 +178,8 @@ proc find_big_ands {bdd needsinvert constants cut_points} {
                 return [find_big_ands [simulate_unit $var $cut_points] $needsinvert $constants $cut_points]
             }
         } else {
-            #puts "returned early $bdd [bdd_mux_type $bdd]"
+            # puts "returned early $bdd [bdd_mux_type $bdd]"
+
             return [list [list $bdd $needsinvert]]
         }
     }
@@ -200,7 +210,8 @@ proc find_big_ands {bdd needsinvert constants cut_points} {
     }
     set in_and_list [find_big_ands $sigIn $invert_in $constants $cut_points]
 
-    #puts "normal $sw_and_list $in_and_list"
+    # puts "normal $sw_and_list $in_and_list"
+
     return [list_union $sw_and_list $in_and_list]
 }
 
@@ -252,7 +263,8 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
 
     set mux_type [bdd_mux_type $bdd]
 
-    #puts "type: $mux_type"
+    # puts "type: $mux_type"
+
 
     if {$mux_type == "mux_wire"} {
         # then pass everything through to the switching signal
@@ -353,8 +365,7 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
 # but this shall have more in it when / if we want to implement non-combinatorial components
 # returns an _abstraction list_ of triples (node, high, low)
 proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
-    #puts "abstracting $sig $high $low // $constants"
-    
+    # puts "abstracting $sig $high $low // $constants"
 
     # quick continue if we somehow get passed a bdd node
     # FIXME can wire names be purely digits? i doubt it but good to check
@@ -363,7 +374,8 @@ proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
     }
 
     if {[is_subset [freevars $sig] $constants]} {
-        #puts ">>>>>>>>>>>>>>>> $sig <<<<<<<<<<<<<<<<<< $constants $cut_points"
+        # puts ">>>>>>>>>>>>>>>> $sig <<<<<<<<<<<<<<<<<< $constants $cut_points"
+
         set t [transitive_simulate $sig]
         return [list [list $t $high $low]]
     }
@@ -375,15 +387,21 @@ proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
     }
 
 
-    set bdd [simulate_unit $sig $cut_points]
+    time {set bdd [simulate_unit $sig $cut_points]}
     return [bdd_mux_abstract $bdd $high $low $name $constants $cut_points]
 }
 
 # main abstraction entry point
-proc autoabstract {sig high low {constants ""}} {
+proc autoabstract {sig high low {constants ""} {constraints ""}} {
+
+    puts "Step 1: Resolving Environmental Constraints"
+    
+
+    
+    puts "Step 2: Backpropagation"
 
     # find the total area of the circuit covered by constants
-    set constants [forward_prop $constants]
+    set constants [forward_prop_const $constants]
 
     # find any fanout points 
     set cut_points [get_fanout_points $sig]
@@ -423,7 +441,7 @@ proc autoabstract {sig high low {constants ""}} {
     set changed true
     set result $initial_abstraction
 
-    #puts "Final step: Merging"
+    puts "Step 3: Merging"
 
     while {$changed} {
         set changed false 
@@ -468,6 +486,10 @@ proc autoabstract {sig high low {constants ""}} {
             }
         }
     } 
+
+    # clear out the memoization dictionary; the circuit may be changed before we're called again
+    global memo
+    unset memo 
 
     return $result
 
