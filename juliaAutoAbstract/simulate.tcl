@@ -179,6 +179,7 @@ proc find_big_ands {bdd needsinvert constants cut_points} {
             }
         } else {
             # puts "returned early $bdd [bdd_mux_type $bdd]"
+
             return [list [list $bdd $needsinvert]]
         }
     }
@@ -196,7 +197,7 @@ proc find_big_ands {bdd needsinvert constants cut_points} {
 
     if {$invert_out != $needsinvert} {
         # inversion violation, the and gate ends here
-        puts "inversion violation $bdd"
+        #puts "inversion violation $bdd"
         return [list [list $bdd $needsinvert]]
     }
 
@@ -210,6 +211,7 @@ proc find_big_ands {bdd needsinvert constants cut_points} {
     set in_and_list [find_big_ands $sigIn $invert_in $constants $cut_points]
 
     # puts "normal $sw_and_list $in_and_list"
+
     return [list_union $sw_and_list $in_and_list]
 }
 
@@ -253,7 +255,7 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
     set sigLow [lindex $inputs 2]
 
     if {[is_const $constants $bdd]} {
-        puts "a>>>>>>>>>>>>>>> $bdd <<<<<<<<<<<<<<<<<< $constants $cut_points"
+        #puts "a>>>>>>>>>>>>>>> $bdd <<<<<<<<<<<<<<<<<< $constants $cut_points"
         # ignore cut points for this transitive simulation, since we want to cross boundaries here
         set t [transitive_simulate $bdd]
         return [list [list $t $high $low]]
@@ -262,6 +264,7 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
     set mux_type [bdd_mux_type $bdd]
 
     # puts "type: $mux_type"
+
 
     if {$mux_type == "mux_wire"} {
         # then pass everything through to the switching signal
@@ -363,7 +366,6 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
 # returns an _abstraction list_ of triples (node, high, low)
 proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
     # puts "abstracting $sig $high $low // $constants"
-    
 
     # quick continue if we somehow get passed a bdd node
     # FIXME can wire names be purely digits? i doubt it but good to check
@@ -373,6 +375,7 @@ proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
 
     if {[is_subset [freevars $sig] $constants]} {
         # puts ">>>>>>>>>>>>>>>> $sig <<<<<<<<<<<<<<<<<< $constants $cut_points"
+
         set t [transitive_simulate $sig]
         return [list [list $t $high $low]]
     }
@@ -407,13 +410,13 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
     # this means we cannot have situations where a MUX gate has a constant on a signalling wire but not a switching one
     # note this might overwrite any user-defined variable ordering!
     if {[llength $constants] > 0} {
-        puts "Applying constants variable ordering..."
+        #puts "Applying constants variable ordering..."
 
         # HACK to force the variable order to actually be replaced. Normally, if the given list is already consistent with the variable ordering
         # the current ordering will be maintained, which is contrary to our goal of ensuring our constants are first
         check_symsim -var_order -set [list H2 H1]
         check_symsim -var_order -set $constants
-        puts [check_symsim -var_order -get]
+        #puts [check_symsim -var_order -get]
     }
 
     set initial_abstraction [bdd_abstract $sig $high $low x $constants $cut_points]
@@ -426,7 +429,7 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
         set i [lsearch -exact $cut_points $cut_point]
         set cut_points_without [lreplace $cut_points $i $i]
 
-        puts ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> TOPLEVEL ABSTRACTING $cut_point // $cut_points_without"
+        #puts ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> TOPLEVEL ABSTRACTING $cut_point // $cut_points_without"
         # run the abstraction for the cut point, using new base names $cut_point\_x for uniqueness.
         dict set abstractions [VAR $cut_point] [bdd_abstract $cut_point [VAR vh_$cut_point] [VAR vl_$cut_point] $cut_point\_x $constants $cut_points_without]
         PRR [dict get $abstractions [VAR $cut_point]]
@@ -452,7 +455,7 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
             
 
             if {[dict exists $abstractions $ab_var]} {
-                puts "> Merging abstraction for [PR $ab_var]"
+                #puts "> Merging abstraction for [PR $ab_var]"
                 set T_O [dict get $abstractions $ab_var]
                 set T_O_updated [list]
 
@@ -462,7 +465,7 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
                     set replaced_var [lindex $triple 0]
                     set high [lindex $triple 1]
                     set low [lindex $triple 2]
-                    puts ">> Substituting through [PR $replaced_var]"
+                    #puts ">> Substituting through [PR $replaced_var]"
 
                     set subs [dict create vh_[trim [PR $ab_var]] $h_v vl_[trim [PR $ab_var]] $l_v ]
                     

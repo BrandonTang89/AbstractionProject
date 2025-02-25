@@ -1,5 +1,204 @@
+#######################################
+# Converts a partitioned abstraction [(TARGVAR/SymbolicConstBDD, highexpr, lowexpr)] into the form (S, T)
+# Takes the partitioned abstraction and a list of target_variables (as strings)
+# Where the indexing relation is S[xs, cs] and T[xs, ts]
+# S[xs] contains no target variables, formed from tuples of the form (SymbolicConstBDD, highexpr, lowexpr)
+# T[xs, ts] = AND_(target variables ti) (highexpr -> ti) AND (lowexpr -> NOT ti)
+
+# We return T as a dictionary from target variable (expression numbers) to (highexpr, lowexpr)
+# We return S as a BDD expression
+
+# Note that this will not work if we do param over the indexing relation since we will have functions of target variables
+#######################################
+proc normalise_abstraction {partition_abstraction target_variables} {
+    set tvar_expr_numbers [list]
+    foreach var $target_variables {
+        lappend tvar_expr_numbers [VAR $var]
+    }
+    # Initialise T_dict with var -> (false, false)
+    set T_dict [dict create]
+    foreach var $tvar_expr_numbers {
+        dict set T_dict $var [list [FALSE] [FALSE]]
+    }
+
+    # Initialise S with TRUE
+    set S [TRUE]
+
+    foreach abstraction $partition_abstraction {
+        set expr [lindex $abstraction 0]
+        set hexpr [lindex $abstraction 1]
+        set lexpr [lindex $abstraction 2]
+
+        if {$expr in $tvar_expr_numbers} {
+            set T [dict get $T_dict $expr]
+            set T [list [OR [lindex $T 0] $hexpr] [OR [lindex $T 1] $lexpr]]
+            dict set T_dict $expr $T
+        } else {
+            set S [AND $S [IMPLIES $hexpr $expr]]
+            set S [AND $S [IMPLIES $lexpr [NOT $expr]]]
+        }
+    }
+
+    return [list $S $T_dict]
+}
+
+#######################################
+# Condenses a partitioned abstraction by combining cases with the same LHS
+#######################################
+proc condense_abstraction {partition_abstraction} {
+    # Dictionary of all expressions that occur in the LHS of the abstraction
+    # When used with auto abstract, this should be symbolic constant expressions or target variables
+    set E_dict [dict create]
+
+    foreach abstraction $partition_abstraction {
+        set expr [lindex $abstraction 0]
+        set hexpr [lindex $abstraction 1]
+        set lexpr [lindex $abstraction 2]
+
+        if {[dict exists $E_dict $expr]} {
+            set hexpr [OR $hexpr [lindex [dict get $E_dict $expr] 0]]
+            set lexpr [OR $lexpr [lindex [dict get $E_dict $expr] 1]]
+        }
+
+        dict set E_dict $expr [list $hexpr $lexpr]
+    }
+
+    set condensed [list]
+    foreach key [dict keys $E_dict] {
+        lappend condensed [list $key [lindex [dict get $E_dict $key] 0] [lindex [dict get $E_dict $key] 1]]
+    }
+
+    return $condensed
+}
+
+#######################################
+# Combines a dictionary of (expr: (highexpr, lowexpr)) into a single expression
+# Used on the T component of a normalised abstractionq
+#######################################
+proc combine_abstraction_dict {abstraction_dict} {
+    set combined_abstraction [TRUE]
+    foreach key [dict keys $abstraction_dict] {
+        set hexpr [lindex [dict get $abstraction_dict $key] 0]
+        set lexpr [lindex [dict get $abstraction_dict $key] 1]
+
+        set combined_abstraction [AND $combined_abstraction [IMPLIES $hexpr $key]]
+        set combined_abstraction [AND $combined_abstraction [IMPLIES $lexpr [NOT $key]]]
+    }
+    return $combined_abstraction
+}
+
+#######################################
+# Returns the domain of the abstraction efficiently using the normalised abstraction
+# dom(R)[X, C] = ∃T . R[X, T, C]
+#######################################
+proc get_domain {abstraction_S abstraction_T} {
+    set domain $abstraction_S
+    foreach key [dict keys $abstraction_T] {
+        set hexpr [lindex [dict get $abstraction_T $key] 0]
+        set lexpr [lindex [dict get $abstraction_T $key] 1]
+        set domain [AND $domain [NOT [AND $hexpr $lexpr]]]
+    }
+    return $domain
+}
+
+#######################################
+# Preimage Computation with Partitioned Abstraction
+# More efficient by exploiting the structure of the partitioned abstraction
+# Analogous to the preimage functions from symsim_helpers_brandon.tcl
+#######################################
+proc weak_preimage_part_without_dom {abstraction_T domain predicate target_vars} {
+    set free_vars [check_symsim -expression -depends $predicate]
+    set relevant_target_vars [intersect $free_vars $target_vars]
+    # puts "relevant_target_vars: $relevant_target_vars"
+
+    if {[llength $relevant_target_vars] == 0} {
+        return $predicate
+    } elseif {[dict exists $abstraction_T $predicate]} {
+        set lexpr [lindex [dict get $abstraction_T $predicate] 1]
+        return [NOT $lexpr]
+    } elseif {[dict exists $abstraction_T [NOT $predicate]]} {
+        set hexpr [lindex [dict get $abstraction_T [NOT $predicate]] 0]
+        return [NOT $hexpr]
+    } else {
+        set restricted_dict [dict create]
+        foreach relevant_target_var $relevant_target_vars {
+            dict set restricted_dict [VAR $relevant_target_var] [dict get $abstraction_T [VAR $relevant_target_var]]
+        }
+        
+        # puts "Restricted dict: $restricted_dict"
+        set RDownP [combine_abstraction_dict $restricted_dict]
+        return [weak_preimage $RDownP $predicate $relevant_target_vars]
+    }
+}
+
+proc weak_preimage_part {abstraction_T domain predicate target_vars} {
+    return [AND $domain [weak_preimage_part_without_dom $abstraction_T $domain $predicate $target_vars]]
+}
+
+proc strong_preimage_part {abstraction_T domain predicate target_vars} {
+    return [AND $domain [NOT [weak_preimage_part_without_dom $abstraction_T $domain [NOT $predicate] $target_vars]]]
+}
+
+proc apply_preimage_part {preimage_part_func stimuli_dict abstraction_T domain target_variables} {
+    set transformed_dict [dict create]
+    foreach signal_name [dict keys $stimuli_dict] {
+        set stimuli_list [dict get $stimuli_dict $signal_name]
+        set transformed_stimuli_list [list]
+        foreach stimuli_tuple $stimuli_list {
+            set bdd_expr_id [lindex $stimuli_tuple 0]
+            set not_bdd_expr_id [lindex $stimuli_tuple 1]
+            set tick_range [lindex $stimuli_tuple 2]
+            set transformed_var [eval [list $preimage_part_func $abstraction_T $domain $bdd_expr_id $target_variables]]
+            set transformed_not_var [eval [list $preimage_part_func $abstraction_T $domain $not_bdd_expr_id $target_variables]]
+            lappend transformed_stimuli_list [list $transformed_var $transformed_not_var $tick_range]
+        }
+        dict set transformed_dict $signal_name $transformed_stimuli_list
+    }
+    return $transformed_dict
+}
+
+proc strong_preimage_stim_part {stimuli_dict abstraction_T domain target_variables} {
+    return [apply_preimage_part strong_preimage_part $stimuli_dict $abstraction_T $domain $target_variables]
+}
+
+proc weak_preimage_stim_part {stimuli_dict abstraction_T domain target_variables} {
+    return [apply_preimage_part weak_preimage_part $stimuli_dict $abstraction_T $domain $target_variables]
+}
+
+#######################################
+# Combines a partititioned abstraction into a single abstraction
+# For use with the basic indexing transformation, (rather than the partitioned one)
+# The abstraction is a list of tuples (expr, highexpr, lowexpr)
+# The combined abstraction is the conjunction of all the highexpr -> expr and lowexpr -> NOT expr
+#######################################
+proc combine_abstractions {abstractions} { 
+    set combined_abstraction [TRUE]
+    foreach abstraction $abstractions {
+        # puts $abstraction
+        set expr [lindex $abstraction 0]
+        set hexpr [lindex $abstraction 1]
+        set lexpr [lindex $abstraction 2]
+
+        set combined_abstraction [AND $combined_abstraction [IMPLIES $hexpr $expr]]
+        set combined_abstraction [AND $combined_abstraction [IMPLIES $lexpr [NOT $expr]]]
+    }
+    return $combined_abstraction
+}
+
+#######################################
+# Returns the domain of a non-partitioned abstraction
+# i.e. the used indexing cases
+# Should be TRUE if produced via automatic abstraction
+#######################################
+proc domain_non_partitioned {idx_rel target_vars} {
+    return [EXISTS_QUANT $target_vars $idx_rel]
+}
+
+#######################################
+# Renames the variables in the partitioned abstraction to be consistent with create_dual_rail_antecedent
+# No longer necessary with the latest names from automatic abstraction
+#######################################
 proc rename_partition_abstraction {partition_abstraction inputs} {
-    # rename every v_xxx to just xxx to be consistent with create_dual_rail_antecedent
     set sub_dict [dict create]
     foreach input $inputs {
         dict set sub_dict "v_$input" [VAR $input]
@@ -22,17 +221,84 @@ proc rename_partition_abstraction {partition_abstraction inputs} {
     return $substituted_abstraction
 }
 
-# Combines a partititioned abstraction into a single abstraction
-proc combine_abstractions {abstractions} { 
-    set combined_abstraction [TRUE]
-    foreach abstraction $abstractions {
-        puts $abstraction
-        set var [lindex $abstraction 0]
-        set hexpr [lindex $abstraction 1]
-        set lexpr [lindex $abstraction 2]
 
-        set combined_abstraction [AND $combined_abstraction [IMPLIES $hexpr $var]]
-        set combined_abstraction [AND $combined_abstraction [IMPLIES $lexpr [NOT $var]]]
+#######################################
+# Returns the T, C that are covered
+#######################################
+proc getCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}} {
+    if {$care_pred eq ""} {
+        set care_pred [TRUE]
     }
-    return $combined_abstraction
+
+    puts "Target vars: $target_vars"
+    puts "Symbolic consts: $symbolic_consts"
+    puts "Care pred: $care_pred"
+
+    set all_vars [check_symsim -expression -depends $idx_rel]
+    set index_vars [difference $all_vars $target_vars]
+    set index_vars [difference $index_vars $symbolic_consts]
+
+    puts "Index vars: $index_vars"
+
+    set expr [
+        IMPLIES $care_pred [
+            EXISTS_QUANT $index_vars $idx_rel
+        ]
+    ]
+
+    return $expr
+}
+
+proc getCoveragePartitioned {partition_abstraction target_vars {symbolic_consts ""} {care_pred ""}} {
+    set index_rel [combine_abstractions $partition_abstraction]
+    return [getCoverage $index_rel $target_vars $symbolic_consts $care_pred]
+}
+
+#######################################
+# Check coverage
+# Returns true iff the abstraction satisfies the coverage property
+# (Deprecated, might as well use the above get coverage function)
+#######################################
+proc satisfiesCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}} {
+    if {$care_pred eq ""} {
+        set care_pred [TRUE]
+    }
+
+    puts "Target vars: $target_vars"
+    puts "Symbolic consts: $symbolic_consts"
+    puts "Care pred: $care_pred"
+
+    set all_vars [check_symsim -expression -depends $idx_rel]
+    set index_vars [difference $all_vars $target_vars]
+    set index_vars [difference $index_vars $symbolic_consts]
+
+    puts "Index vars: $index_vars"
+
+    if {$symbolic_consts eq ""} {
+        set expr [
+            FORALL_QUANT $target_vars [
+                IMPLIES $care_pred [
+                    EXISTS_QUANT $index_vars $idx_rel
+                ]
+            ]
+        ]
+    } else {
+        set expr [
+            FORALL_QUANT $symbolic_consts [
+                FORALL_QUANT $target_vars [
+                    IMPLIES $care_pred [
+                        EXISTS_QUANT $index_vars $idx_rel
+                    ]
+                ]
+            ]
+        ]
+    }
+
+    return $expr
+}
+
+
+proc satisfiesCoveragePartitioned {partition_abstraction target_vars {symbolic_consts ""} {care_pred ""}} {
+    set index_rel [combine_abstractions $partition_abstraction]
+    return [satisfiesCoverage $index_rel $target_vars $symbolic_consts $care_pred]
 }

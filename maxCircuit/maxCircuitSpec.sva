@@ -1,0 +1,41 @@
+module max_circuit_spec #(
+    parameter DATA_LENGTH = 2,
+    parameter ADDR_WIDTH = 2
+)(
+    input logic clk,                                            // Clock signal
+    input logic [DATA_LENGTH-1:0] ins [(2**ADDR_WIDTH)-1:0],    // Memory array
+    input logic [DATA_LENGTH-1:0] maxCircuit_out
+);
+
+    // Procedural block to check if the inputs contains output of maxCircuit
+    logic found;
+    always_comb begin
+        found = 0;
+        for (int i = 0; i < (2**ADDR_WIDTH); i++) begin
+            if (ins[i] == maxCircuit_out) begin
+                found = 1;
+            end
+        end
+    end
+
+    // Proceduural block to check if the output is at least as large as all inputs
+    logic boundsInput;
+    always_comb begin
+        boundsInput = 1;
+        for (int i = 0; i < (2**ADDR_WIDTH); i++) begin
+            if (maxCircuit_out < ins[i]) begin
+                boundsInput = 0;
+            end
+        end
+    end
+
+    assert_contained:
+        assert property (found);
+
+    assert_bounds:
+        assert property (boundsInput);
+
+    
+        
+
+endmodule

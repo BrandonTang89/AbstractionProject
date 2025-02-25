@@ -45,7 +45,7 @@ set max_property_tick [max_dict_values $properties]
 # === Set up Stimuli ===
 # Create initial un-abstracted stimuli
 set input_ticks [list 2 4]
-set antv [merge_dual_rail_antecedent \
+set antv [merge_dual_rail_antecedents \
     [create_dual_rail_antecedent a $input_ticks] \
     [create_dual_rail_antecedent b $input_ticks] \
     [create_dual_rail_antecedent c $input_ticks] \  
@@ -68,7 +68,7 @@ set index_rel [AND \
     [OR $p $q $r]\
 ]
 
-# Example of too refined abstraction, doesn't work
+# Example of too coarse abstraction, doesn't work
 # set index_rel [AND \
 #     [IMPLIES $p [AND [VAR a@2] [VAR b@2] [VAR c@2] [VAR a@4] [VAR b@4] [VAR c@4]]] \
 #     [IMPLIES [NOT $p] [OR [NOT [VAR a@2]] [NOT [VAR b@2]] [NOT [VAR c@2]] [NOT [VAR a@4]] [NOT [VAR b@4]] [NOT [VAR c@4]]]] \
@@ -79,6 +79,10 @@ set index_rel [check_symsim -expression -canonize $index_rel]
 # Check that the indexing relation is as expected
 check_symsim -expression -depends $index_rel
 PR $index_rel
+
+# Check Coverage
+set coverage [satisfiesCoverage $index_rel $bdd_variables]
+assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
 # === Indexing Transformation ===
 # Apply the indexing transformation to the stimuli
@@ -108,7 +112,10 @@ check_symsim -sequence $eval_seq -get $assertions -verbose
 # With the modified property, we can perform the weak preimage transformation to get the transformed consequence
 # We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
 set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
+set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]  
+
+# prop_low should always be false
+# prop_high is the domain of the indexing relation, i.e. all abstraction cases that correspond to some target assignment
 
 PR $prop_high
 PR $prop_low

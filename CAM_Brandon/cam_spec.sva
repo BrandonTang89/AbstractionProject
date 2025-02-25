@@ -7,8 +7,9 @@ module cam_spec #(
     parameter ADDR_WIDTH = 6
 )(
     input logic clk,                       // Clock signal
-    input logic [DATA_LENGTH-1:0] query,    // Query value
+    input logic [DATA_LENGTH-1:0] query,   // Query value
     input logic hit,                       // Hit signal
+    input logic next_hit,                  // Next hit signal (to test combinational assertion)
     input logic [DATA_LENGTH-1:0] mem [(2**ADDR_WIDTH)-1:0] // Memory array
 );
 
@@ -20,13 +21,16 @@ module cam_spec #(
     logic found_prev;
 
     // Procedural block to check if the memory contains the query string
-    always_ff @(posedge clk) begin
+    always_comb begin
         found = 0;
         for (int i = 0; i < (2**ADDR_WIDTH); i++) begin
             if (mem[i] == query) begin
                 found = 1;
             end
         end
+    end
+
+    always_ff @(posedge clk) begin
         found_prev <= found;  // Update found_prev on every clock cycle
     end
 
@@ -41,5 +45,14 @@ module cam_spec #(
 
     // assert_hit:
     //     assert property (##1 hit == found_prev);
+    
+    // Assertion to check if the next hit signal will be correctly set
+    // Fan-in cone of influence is combinational
+    logic assert_next_hit_signal;
+    always_comb begin
+        assert_next_hit_signal = (next_hit == found);
+    end
 
+    assert_next_hit:
+        assert property (assert_next_hit_signal);
 endmodule
