@@ -248,6 +248,7 @@ proc separate_and_signals {signals constants} {
 # performs the abstraction step on a BDD tree
 # returns an _abstraction list_ of triples (node, high, low)
 proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
+    puts ">> bdd $bdd"
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
@@ -255,7 +256,7 @@ proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
     set sigLow [lindex $inputs 2]
 
     if {[is_const $constants $bdd]} {
-        #puts "a>>>>>>>>>>>>>>> $bdd <<<<<<<<<<<<<<<<<< $constants $cut_points"
+        puts ">>>>>>>>>>>>>>> $bdd <<<<<<<<<<<<<<<<<< $constants $cut_points"
         # ignore cut points for this transitive simulation, since we want to cross boundaries here
         set t [transitive_simulate $bdd]
         return [list [list $t $high $low]]
