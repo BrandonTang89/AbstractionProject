@@ -248,7 +248,7 @@ proc separate_and_signals {signals constants} {
 # performs the abstraction step on a BDD tree
 # returns an _abstraction list_ of triples (node, high, low)
 proc bdd_mux_abstract {bdd high low name {constants ""} {cut_points ""}} {
-    puts ">> bdd $bdd"
+    # puts ">> bdd $bdd"
     set inputs [TC $bdd]
 
     set var [lindex $inputs 0]
@@ -395,6 +395,10 @@ proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
 # main abstraction entry point
 proc autoabstract {sig high low {constants ""} {constraints ""}} {
 
+    # clear out the memoization dictionary; we want to be sure we're being called with fresh state
+    global memo
+    unset -nocomplain memo 
+
     puts "Step 1: Resolving Environmental Constraints"
     
 
@@ -405,7 +409,7 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
     set constants [forward_prop_const $constants]
 
     # find any fanout points 
-    set cut_points [get_fanout_points $sig]
+    set cut_points [get_fanout_points $sig $constants]
     
     # force any symbolic constants to appear as first in any BDDs
     # this means we cannot have situations where a MUX gate has a constant on a signalling wire but not a switching one
@@ -424,8 +428,11 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
 
     set abstractions [dict create]
 
+    set i 0
+
     foreach cut_point $cut_points {
-        
+        incr i
+        puts "Step 2 // $i / [llength $cut_points]"
         # remove the current cut point from the list, so the abstraction algorithm doesn't immediately halt
         set i [lsearch -exact $cut_points $cut_point]
         set cut_points_without [lreplace $cut_points $i $i]
@@ -487,6 +494,20 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
             }
         }
     } 
+
+    puts "Step 4: Filtering"
+    # Remove anything that has a non-input as it's variable, since the logical information there has been absorbed into the whole thing
+    set result_temp $result
+    set result [list ]
+
+    foreach ab $result_temp {
+        set ab_var [trim [PR [lindex $ab 0]]]
+        if {[is_VAR $ab_var]} {
+            lappend result $ab
+        } 
+    }
+
+    puts "Done."
 
     # clear out the memoization dictionary; the circuit may be changed before we're called again
     global memo
