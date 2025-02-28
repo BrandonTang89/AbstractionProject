@@ -393,7 +393,7 @@ proc bdd_abstract {sig high low name {constants ""} {cut_points ""}} {
 }
 
 # main abstraction entry point
-proc autoabstract {sig high low {constants ""} {constraints ""}} {
+proc autoabstract {sigs high low {constants ""} {constraints ""}} {
 
     # clear out the memoization dictionary; we want to be sure we're being called with fresh state
     global memo
@@ -407,6 +407,10 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
 
     # find the total area of the circuit covered by constants
     set constants [forward_prop_const $constants]
+
+    # START WIRE-SPECIFIC
+    set results [dict create]
+    foreach sig $sigs {
 
     # find any fanout points 
     set cut_points [get_fanout_points $sig $constants]
@@ -508,11 +512,21 @@ proc autoabstract {sig high low {constants ""} {constraints ""}} {
     }
 
     puts "Done."
+    dict set results $sig $result 
+    # END
+
+
+    }
+
+
 
     # clear out the memoization dictionary; the circuit may be changed before we're called again
     global memo
     unset memo 
 
-    return $result
+    if {[dict size $results] == 1} {
+        return [dict get $results $sigs]
+    }
+    return $results
 
 }
