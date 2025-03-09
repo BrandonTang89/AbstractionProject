@@ -1,0 +1,3 @@
+NUM_ENTRIES, DATA_LENGTH, abstraction_time, transform_time, eval_time, check_time
+ 8, 256, 8604167, 12034723, 448700, 5138
+ 16, 256, 17478777, 24461856, 1101054, 5550

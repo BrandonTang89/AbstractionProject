@@ -10,3 +10,6 @@ The specification consists of 2 properties:
 With a data width of 4 and an address width of 6, Jasper Gold's normal proof engines take about
 - 27 seconds for the containment property
 - 47 seconds for the bounding property
+
+With a data width of 6 and an address width of 4, Jasper Gold's normal proof engines take about
+- 8 seconds to do the proof

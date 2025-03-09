@@ -1,8 +1,8 @@
 file mkdir output
 
 # === MaxCircuit Manual Indexing ===
-set data_widths [list 1 2 3 4 5 6 7]
-set addr_widths [list 1]
+set data_widths [list 4]
+set addr_widths [list 3]
 set filename "output/maxCircuit_manualAbstract2.txt"
 
 set file_handle [open $filename "w"]
@@ -22,8 +22,8 @@ foreach DATA_WIDTH $data_widths {
 
 
 # === MaxCircuit No Abstraction ===
-set data_widths [list 1 2 3 4 5 6 7]
-set addr_widths [list 1]
+set data_widths [list 4]
+set addr_widths [list 3]
 set filename "output/maxCircuit_noAbstract2.txt"
 set file_handle [open $filename "w"]
 puts $file_handle "NUM_ENTRIES, DATA_LENGTH, eval_time, check_time"
