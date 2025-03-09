@@ -184,7 +184,8 @@ proc abs_is_fully_mutex {abs} {
 # finds a list of points with nontrivial fanout in the transitive fanin of a signal i.e. 'fanout points'
 # we only return nontrivial fanout points; when a fanout point is an input it doesn't matter because there's no 'other side' to 
 # have to deal with
-proc get_fanout_points {sig} {
+# FIXME doesn't consider fanout points inside a BDD!!!
+proc get_fanout_points {sig constants} {
     set candidates [check_symsim -transitive_fanin -signals $sig]
     set results [list]
 
@@ -202,11 +203,57 @@ proc get_fanout_points {sig} {
             }
         }
 
+        # add in any bdd-internal cut points
+        if {![is_VAR $candidate]} {
+            set results [list_union $results [in_bdd_fanout $candidate $constants]]
+        }
+
     }
 
     return $results
 }
 
+# takes a signal, and returns a list of signals that fanout directly inside the bdd
+# which, conveniently, is equivalent to a fanout exactly outside the bdd
+# so we can just add these signals to the cut points? maybe? we shall see.
+# NOTE: RESULTS HIGHLY SENSITIVE TO BDD ORDERING
+proc in_bdd_fanout {sig constants} {
+    # no cut points yet
+    set bdd [simulate_unit $sig ""]
+    set curr [list $bdd]
+    set seen [list]
+    set results [list]
+
+    # idea: bfs the entire tree, looking for multiple mux gates with the same driver
+
+    while {[llength $curr] != 0} {
+        set x [lpop curr]
+        set x_var [lindex [TC $x] 0]
+        set x_left [lindex [TC $x] 1]
+        set x_right [lindex [TC $x] 2]
+
+        if {$x_var in $seen} {
+            # don't add inputs or constants to the fanout list because they immediately terminate
+            if {![is_VAR $x_var]} {
+                set results [list_union $results [list $x_var]]
+            }
+        } else {
+            lappend seen $x_var
+        }
+
+        if {![bdd_is_terminal $x_left]} {
+            lappend curr $x_left 
+        }
+
+        if {![bdd_is_terminal $x_right]} {
+            lappend curr $x_right
+        }
+
+    }
+
+
+    return $results
+}
 
 proc trim {s} {
     if {[string first \{ $s] != 0} { return $s }
