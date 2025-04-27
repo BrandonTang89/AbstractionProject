@@ -1,0 +1,9 @@
+# With running from spec rather than on circuit...
+# Worse than with running on the circuit directly
+NUM_ENTRIES, DATA_LENGTH, abstraction_time, transform_time, eval_time, check_time
+ 8, 16, 20262223, 775674, 12753, 3080
+ 16, 16, 59892619, 1520618, 24419, 3061
+ 8, 32, 63152136, 1562865, 25388, 3108
+ 16, 32, 207507977, 3034595, 54331, 3283
+ 8, 64, 213493682, 3129506, 59878, 3369
+ 16, 64, 765090795, 6023439, 137213, 3304

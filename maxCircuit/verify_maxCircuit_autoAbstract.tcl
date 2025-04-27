@@ -1,8 +1,8 @@
 # =====================================================================
 # Verification of the MaxCircuit via a Indexing Transformation with a manually created indexing relation
 # =====================================================================
-# set DATA_WIDTH 2; # log d
-# set ADDR_WIDTH 1; # log n
+set DATA_WIDTH 2; # log d
+set ADDR_WIDTH 1; # log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 set TEST_ITERATIONS 1
@@ -51,7 +51,8 @@ set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 puts "Abstracting..."
 set abstraction_time [time {
     # set partition_abstraction [autoabstract spec.found [VAR t_0] [NOT [VAR t_0]]]
-    set partition_abstraction [autoabstract spec.boundsInput [VAR t_0] [NOT [VAR t_0]]]
+    # set partition_abstraction [autoabstract spec.boundsInput [VAR t_0] [NOT [VAR t_0]]]
+    set partition_abstraction [autoabstract spec.assert_bounds [VAR t_0] [NOT [VAR t_0]]]
 
 } $TEST_ITERATIONS ]
 
