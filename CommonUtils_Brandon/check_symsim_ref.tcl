@@ -3,7 +3,6 @@
 # The underlying commands and reports of this script are copyrighted by Cadence.
 # We thank Cadence for granting permission to share our research to help
 # promote and foster the next generation of innovators.
-# Original Authors: Brandon Tang Yu Han and Julia Irvine
 
 # % help check_symsim
 # ----------------------------------------
