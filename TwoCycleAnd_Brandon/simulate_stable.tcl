@@ -1,6 +1,13 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # ===== Exprimentation with Conducting a Symbolic Simulation =====
 # ==== Here we simulate the circuit assuming stable inputs ====
-# A lot of stuff here is not necessary and just for learning 
+# A lot of stuff here is not necessary and just for learning
 
 clear -all
 source ../CommonUtils_Brandon/symsim_utils.tcl
@@ -44,7 +51,7 @@ check_symsim -expression -depends $and_abg
 check_symsim -expression -pick_assignment [list $and_abg] -small
 
 # Sequences in check_symsim map expressions to wires over some time
-# this seems to be where we can eventually add abstraction since we have the opportunity 
+# this seems to be where we can eventually add abstraction since we have the opportunity
 # for dual rail BDDS to be attached to each signal
 
 set my_stimuli_dict [dict create a [list [list $alpha $nalpha 1:$]] b [list [list $beta $nbeta 1:$]] c [list [list $gamma $ngamma 1:$]]]

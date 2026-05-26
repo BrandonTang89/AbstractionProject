@@ -1,3 +1,9 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
 
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
 variable baseDir [file dirname [file normalize [info script]]]
@@ -35,7 +41,7 @@ proc bexpr2bdd {sig} {
 proc is_XNOR {sig} {
     set expr [extract_gate_expr $sig]
     set nScanned [scan $expr {~(%s ^ %s)} opA opB]
-    # return true if both tokens were scanned successfully i.e. this is a && expr 
+    # return true if both tokens were scanned successfully i.e. this is a && expr
     if {$nScanned == 2} {
         return 1
     }
@@ -116,9 +122,9 @@ proc advanced_bp {C sig high low name} {
         set is [sort_inp_args $C $sig]
         if {[is_subset [freevars_signal [lindex $is 0]] C]} {
             set c [bexpr2bdd $sig]
-            # TODO I don't understand what this `h c` notation does... there isn't really an obvious free variable to substitute for... 
+            # TODO I don't understand what this `h c` notation does... there isn't really an obvious free variable to substitute for...
             # I _think_ it's just going to be (h AND c) but I need to think about this some more (why not just write that in the paper if it's the case!)
-            
+
             # NOTE: it looks like it might be AND, as I suspected
             error "xnor implementation unfinished"
         } else {
@@ -152,8 +158,8 @@ proc advanced_bp {C sig high low name} {
 
         return $res
     } else {
-            error [concat "unknown expression in fanin for " $sig]
-            return [list]
+        error [concat "unknown expression in fanin for " $sig]
+        return [list]
     }
 }
 

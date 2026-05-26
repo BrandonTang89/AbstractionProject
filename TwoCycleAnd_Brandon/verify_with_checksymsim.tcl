@@ -1,3 +1,10 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # ===== DFV Proof via check-symsim API =====
 clear -all
 source ../CommonUtils_Brandon/symsim_utils.tcl
@@ -15,7 +22,7 @@ set propertyName <embedded>::and_2_cycles_top.spec.and_correct
 
 check_symsim -recipe my_recipe -config
 check_symsim -recipe my_recipe -config -init_states false
-check_symsim -recipe my_recipe -cin_ncfow false -cout_ncfow false 
+check_symsim -recipe my_recipe -cin_ncfow false -cout_ncfow false
 check_symsim -recipe list
 
 proc makeAntecedent {signals ticks} {
@@ -40,8 +47,8 @@ set mycout [dict create $propertyName [list 6]]
 # If we add 4 or 8 to the above cout list, we will see that the proof fails
 
 check_symsim -resolved_recipe -create -recipe my_recipe -antv $myantv -cout $mycout -force
-set proofRes [check_symsim -prove -resolved_recipe my_recipe ]
-set recipe_res [dict get  $proofRes recipe_results]
+set proofRes [check_symsim -prove -resolved_recipe my_recipe]
+set recipe_res [dict get $proofRes recipe_results]
 set proofId [dict get $recipe_res proof_id]
 
 set outputSeq [symsim::get_result_sequence]

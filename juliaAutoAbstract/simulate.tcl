@@ -1,3 +1,10 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # Symbolically simulates **only** the immediate fanin of a wire, to essentially find it's behavior
 
 # https://stackoverflow.com/a/72614138 to make this sourceable from outside this directory
@@ -36,7 +43,7 @@ proc simulate_unit {sig} {
     # this behavior might need to change in the future
 
     set subs [dict create]
-    
+
     # docs state that it should be indexed by 0; actual behavior appears to index by 1
     set i 1
     foreach input $inputs {
@@ -48,7 +55,6 @@ proc simulate_unit {sig} {
     }
 
     return [check_symsim -expression -substitute $high_rail $subs]
-
 }
 
 proc transitive_simulate {bdd} {
@@ -71,7 +77,6 @@ proc transitive_simulate {bdd} {
 
     return $bdd
 }
- 
 
 
 # Find the 'free variables' present in a given signal
@@ -133,7 +138,7 @@ proc bdd_mux_type {bdd} {
     } else {
         # none are terminal
         return "mux_full"
-    }    
+    }
 }
 
 proc bdd_mux_one_type {bdd} {
@@ -149,20 +154,20 @@ proc bdd_mux_one_type {bdd} {
     set invert_in false
 
     if {[bdd_is_terminal $sigHigh]} {
-            if {$sigHigh == [TRUE]} {
-                set invert_out true
-                set invert_sw true 
-                set invert_in true
-            } else {
-                set invert_sw true
-            }
+        if {$sigHigh == [TRUE]} {
+            set invert_out true
+            set invert_sw true
+            set invert_in true
         } else {
-            if {$sigLow == [TRUE]} {
-                set invert_out true
-                set invert_in true
-            } else {
-                # no inversion needed
-            }
+            set invert_sw true
+        }
+    } else {
+        if {$sigLow == [TRUE]} {
+            set invert_out true
+            set invert_in true
+        } else {
+            # no inversion needed
+        }
     }
 
     return [list $invert_out $invert_sw $invert_in]
@@ -178,7 +183,6 @@ proc bdd_mux_one_type {bdd} {
 #
 # the size of the output depends on the BDD ordering -- perhaps it's possible to find orderings that give maximal size somehow?
 proc find_big_ands {bdd needsinvert constants} {
-
     set inputs [TC $bdd]
     set var [lindex $inputs 0]
 
@@ -220,7 +224,7 @@ proc find_big_ands {bdd needsinvert constants} {
     }
 
     # okay, this is an and gate that is consistent with it's ancestors, so we can recurse down it's inputs
-    if {[is_VAR $var] || $var in $constants} { 
+    if {[is_VAR $var] || $var in $constants} {
         # stop recursing, since this is a variable
         set sw_and_list [list [list $var $needsinvert]]
     } else {
@@ -259,14 +263,12 @@ proc separate_and_signals {signals constants} {
 }
 
 # from https://wiki.tcl-lang.org/page/Performance+of+Various+Stack+Implementations by Lars Hellström
-proc lpop listVar {
-        upvar 1 $listVar l
-        set r [lindex $l end]
-        set l [lreplace $l [set l end] end] ; # Make sure [lreplace] operates on unshared object
-        return $r
+proc lpop {listVar} {
+    upvar 1 $listVar l
+    set r [lindex $l end]
+    set l [lreplace $l [set l end] end] ;# Make sure [lreplace] operates on unshared object
+    return $r
 }
-
-
 
 
 # performs the abstraction step on a BDD tree
@@ -323,13 +325,11 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
         } else {
             set sigLow_ab [list [list [transitive_simulate $sigLow] [AND [NOT $x] $high] [AND [NOT $x] $low]]]
         }
-        
+
         return [list_union [list_union $var_ab $sigHigh_ab] $sigLow_ab]
-
-
     } elseif {$mux_type == "mux_one"} {
         # if one of the inputs is terminal, then the mux reduces down to a single AND gate with some inversions
-   
+
 
         set invert_list [bdd_mux_one_type $bdd]
 
@@ -388,12 +388,12 @@ proc bdd_mux_abstract {bdd high low name {constants ""}} {
 # returns an _abstraction list_ of triples (node, high, low)
 proc bdd_abstract {sig high low name {constants ""}} {
     puts "abstracting $sig $high $low // $constants"
-    
+
 
     # quick continue if we somehow get passed a bdd node
     # FIXME can wire names be purely digits? i doubt it but good to check
     if {[string is digit $sig]} {
-            return [bdd_mux_abstract $sig $high $low $name $constants]
+        return [bdd_mux_abstract $sig $high $low $name $constants]
     }
 
     if {[is_subset [freevars $sig] $constants]} {
@@ -415,10 +415,9 @@ proc bdd_abstract {sig high low name {constants ""}} {
 
 # main abstraction entry point
 proc autoabstract {sig high low {constants ""}} {
-
     # find the total area of the circuit covered by constants
     set constants [forward_prop $constants]
-    
+
     # force any symbolic constants to appear as first in any BDDs
     # this means we cannot have situations where a MUX gate has a constant on a signalling wire but not a switching one
     # note this might overwrite any user-defined variable ordering!
@@ -433,8 +432,6 @@ proc autoabstract {sig high low {constants ""}} {
     }
 
     return [bdd_abstract $sig $high $low x $constants]
-
-
 }
 
 
@@ -462,7 +459,6 @@ proc get_abs_vars {abs} {
 proc simplify_abs_list {abs} {
     set new_abs [dict create]
     foreach ab $abs {
-
         if {[dict exists $new_abs [lindex $ab 0]]} {
             set existing [dict get $new_abs [lindex $ab 0]]
             set high [OR [lindex $existing 0] [lindex $ab 1]]

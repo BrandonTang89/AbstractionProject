@@ -1,3 +1,10 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 #######################################
 # Converts a partitioned abstraction [(TARGVAR/SymbolicConstBDD, highexpr, lowexpr)] into the form (S, T)
 # Takes the partitioned abstraction and a list of target_variables (as strings)
@@ -95,7 +102,7 @@ proc weak_preimage_part {abstraction_T domain predicate target_vars} {
         foreach relevant_target_var $relevant_target_vars {
             dict set restricted_dict [VAR $relevant_target_var] [dict get $abstraction_T [VAR $relevant_target_var]]
         }
-        
+
         puts "Restricted dict: $restricted_dict"
         set RDownP [combine_abstraction_dict $restricted_dict]
         return [AND $domain [weak_preimage $RDownP $predicate $relevant_target_vars]]
@@ -138,7 +145,7 @@ proc weak_preimage_stim_part {stimuli_dict abstraction_T domain target_variables
 # The abstraction is a list of tuples (expr, highexpr, lowexpr)
 # The combined abstraction is the conjunction of all the highexpr -> expr and lowexpr -> NOT expr
 #######################################
-proc combine_abstractions {abstractions} { 
+proc combine_abstractions {abstractions} {
     set combined_abstraction [TRUE]
     foreach abstraction $abstractions {
         # puts $abstraction
@@ -170,7 +177,7 @@ proc rename_partition_abstraction {partition_abstraction inputs} {
     foreach input $inputs {
         dict set sub_dict "v_$input" [VAR $input]
     }
-    
+
     set substituted_abstraction []
 
     foreach abstraction $partition_abstraction {
@@ -209,23 +216,9 @@ proc satisfiesCoverage {idx_rel target_vars {symbolic_consts ""} {care_pred ""}}
     puts "Index vars: $index_vars"
 
     if {$symbolic_consts eq ""} {
-        set expr [
-            FORALL_QUANT $target_vars [
-                IMPLIES $care_pred [
-                    EXISTS_QUANT $index_vars $idx_rel
-                ]
-            ]
-        ]
+        set expr [FORALL_QUANT $target_vars [IMPLIES $care_pred [EXISTS_QUANT $index_vars $idx_rel]]]
     } else {
-        set expr [
-            FORALL_QUANT $symbolic_consts [
-                FORALL_QUANT $target_vars [
-                    IMPLIES $care_pred [
-                        EXISTS_QUANT $index_vars $idx_rel
-                    ]
-                ]
-            ]
-        ]
+        set expr [FORALL_QUANT $symbolic_consts [FORALL_QUANT $target_vars [IMPLIES $care_pred [EXISTS_QUANT $index_vars $idx_rel]]]]
     }
 
     return $expr

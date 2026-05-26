@@ -1,3 +1,10 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # ===== Symbolic Simulation with Indexing Transformations =====
 # This script applies an indexing transformation to add abstraction to the simulation
 
@@ -11,9 +18,9 @@
 # p and (not q) and (not r) -> not c@4p
 # p OR q OR r
 
-# This satisfies the coverage condition that 
-    # for each 2^6 possible inputs (across 3 signals on 2 time ticks),
-    # we have some value of (p, q, r) that maps to that
+# This satisfies the coverage condition that
+# for each 2^6 possible inputs (across 3 signals on 2 time ticks),
+# we have some value of (p, q, r) that maps to that
 
 # The initial set up is the same as for the no-abstraction simulation
 clear -all
@@ -37,8 +44,7 @@ set assertions [check_symsim -model $model_id -list assert]
 # == Set up property to check ==
 set properties [dict create \
     spec.and_correct 6 \
-    spec.and_wrong 6 \
-]
+    spec.and_wrong 6]
 
 set max_property_tick [max_dict_values $properties]
 
@@ -48,11 +54,10 @@ set input_ticks [list 2 4]
 set antv [merge_dual_rail_antecedent \
     [create_dual_rail_antecedent a $input_ticks] \
     [create_dual_rail_antecedent b $input_ticks] \
-    [create_dual_rail_antecedent c $input_ticks] \  
-]
+    [create_dual_rail_antecedent c $input_ticks] \ ]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
-# === Create indexing relation === 
+# === Create indexing relation ===
 set p [VAR p]
 set q [VAR q]
 set r [VAR r]
@@ -65,8 +70,7 @@ set index_rel [AND \
     [IMPLIES [AND [NOT $p] [NOT $q] $r] [NOT [VAR a@4]]] \
     [IMPLIES [AND [NOT $p] $q [NOT $r]] [NOT [VAR b@4]]] \
     [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
-    [OR $p $q $r]\
-]
+    [OR $p $q $r]]
 
 # Example of too coarse abstraction, doesn't work
 # set index_rel [AND \
@@ -94,12 +98,12 @@ set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq
 
 # Run the symbolic simulation
 set num_ticks [expr $max_property_tick + 2]
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_out [check_symsim -eval $model_id \
+    -resolved_sequence $resolved_seq_id \
+    -start_tick 1 \
+    -num_ticks $num_ticks \
+    -init_states false \
+    -canonize on]
 
 set eval_seq [dict get $eval_out sequence_id]
 
@@ -111,8 +115,8 @@ check_symsim -sequence $eval_seq -get $assertions -verbose
 # === Transformation of the property ===
 # With the modified property, we can perform the weak preimage transformation to get the transformed consequence
 # We observe that for each property, we will transform the dual rail value (TRUE, FALSE) so we just need to do this once for all properties
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
-set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]  
+set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables]
+set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
 
 # prop_low should always be false
 # prop_high is the domain of the indexing relation, i.e. all abstraction cases that correspond to some target assignment
