@@ -1,8 +1,15 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # =====================================================================
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
 # =====================================================================
-set DATA_WIDTH 1; # log d
-set ADDR_WIDTH 2; # log n
+set DATA_WIDTH 1 ;# log d
+set ADDR_WIDTH 2 ;# log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
@@ -31,8 +38,7 @@ set signals [check_symsim -model $model_id -list signal]
 # == Set up property to check ==
 set properties [dict create \
     spec.assert_hit 4 \
-    spec.assert_next_hit 2 \
-]
+    spec.assert_next_hit 2]
 
 set max_property_tick [max_dict_values $properties]
 
@@ -50,7 +56,7 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
-# === Create indexing relation === 
+# === Create indexing relation ===
 set partition_abstraction [autoabstract next_hit [VAR t0] [NOT [VAR t0]]]
 
 # Check coverage
@@ -72,12 +78,12 @@ set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq
 
 # Run the symbolic simulation
 set num_ticks [expr $max_property_tick + 2]
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_out [check_symsim -eval $model_id \
+    -resolved_sequence $resolved_seq_id \
+    -start_tick 1 \
+    -num_ticks $num_ticks \
+    -init_states false \
+    -canonize on]
 
 set eval_seq [dict get $eval_out sequence_id]
 

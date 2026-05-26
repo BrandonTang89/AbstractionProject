@@ -1,3 +1,10 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # ===== Symbolic Simulation with Indexing Transformations =====
 # This script runs a symbolic simulation with an indexing transformation and input constraints
 
@@ -25,7 +32,7 @@ set input_ticks [list 2 4]
 set bdd_variables [create_bdd_variables $inputs $input_ticks]
 set stimuli_dict [create_stimuli_dict $inputs $bdd_variables]
 
-# === Create indexing relation === 
+# === Create indexing relation ===
 set p [VAR p]
 set q [VAR q]
 set r [VAR r]
@@ -37,22 +44,20 @@ set index_rel [AND \
     [IMPLIES [AND [NOT $p] $q $r] [NOT [VAR c@2]]] \
     [IMPLIES [AND [NOT $p] [NOT $q] $r] [NOT [VAR a@4]]] \
     [IMPLIES [AND [NOT $p] $q [NOT $r]] [NOT [VAR b@4]]] \
-    [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]] \
-]
+    [IMPLIES [AND $p [NOT $q] [NOT $r]] [NOT [VAR c@4]]]]
 
 set index_rel [check_symsim -expression -canonize $index_rel]
 PR $index_rel
 
 # === Construct Input Constraints ===
-# Here we assume the input constraint that 
+# Here we assume the input constraint that
 # ((a@2 AND b@2) = (a@2 AND c@2)) AND ((a@4 AND b@4) = (a@4 AND c@4))
 # this is equivalent to
 # ((a@2 AND b@2) XNOR (a@2 AND c@2)) AND ((a@4 AND b@4) XNOR (a@4 AND c@4))
 
 set input_constraint [AND \
     [XNOR [AND [VAR a@2] [VAR b@2]] [AND [VAR a@2] [VAR c@2]]] \
-    [XNOR [AND [VAR a@4] [VAR b@4]] [AND [VAR a@4] [VAR c@4]]] \
-]
+    [XNOR [AND [VAR a@4] [VAR b@4]] [AND [VAR a@4] [VAR c@4]]]]
 
 PR $input_constraint
 
@@ -67,7 +72,7 @@ assert [expr {[dict get $param_res is_sat_exprs] == 1}] "Parameterisation failed
 set param_substitutions [lindex [dict get $param_res symb_subst] 0]
 proc rename_param_phase_0 {exp} {return [rename_param_variables $exp 0]}
 
-# We rename the substituted variables 
+# We rename the substituted variables
 set param_subs_renamed [dict_map $param_substitutions rename_param_phase_0]
 
 # == Apply parameterisation to the Antecedent and Indexing Relation ==
@@ -88,12 +93,12 @@ set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq
 
 # Run the symbolic simulation
 set num_ticks 8
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_out [check_symsim -eval $model_id \
+    -resolved_sequence $resolved_seq_id \
+    -start_tick 1 \
+    -num_ticks $num_ticks \
+    -init_states false \
+    -canonize on]
 
 set eval_seq [dict get $eval_out sequence_id]
 

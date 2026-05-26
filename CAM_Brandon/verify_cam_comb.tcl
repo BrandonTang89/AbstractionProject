@@ -1,3 +1,10 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # =====================================================================
 # Verification of the combinational aspect of the CAM via automatic indexing transformation
 # Doesn't use the efficient preimage computation
@@ -6,8 +13,8 @@
 # Abstraction from the wire doesn't satisfy the coverage condition
 # Abstraction from the output next_hit wire leads to over abstraction
 # =====================================================================
-set DATA_WIDTH 1; # log d
-set ADDR_WIDTH 2; # log n
+set DATA_WIDTH 1 ;# log d
+set ADDR_WIDTH 2 ;# log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
@@ -36,8 +43,7 @@ set signals [check_symsim -model $model_id -list signal]
 # == Set up property to check ==
 set properties [dict create \
     spec.assert_hit 4 \
-    spec.assert_next_hit 2 \
-]
+    spec.assert_next_hit 2]
 
 set max_property_tick [max_dict_values $properties]
 
@@ -64,7 +70,7 @@ set index_rel [combine_abstractions $partition_abstraction]
 set coverage [satisfiesCoverage $index_rel $bdd_variables]
 assert [expr {$coverage == 1}] "Indexing relation does not cover all cases"
 
-check_symsim -expression -depends $index_rel 
+check_symsim -expression -depends $index_rel
 PR $index_rel
 
 # === Indexing Transformation ===
@@ -77,12 +83,12 @@ set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq
 
 # Run the symbolic simulation
 set num_ticks [expr $max_property_tick + 2]
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_out [check_symsim -eval $model_id \
+    -resolved_sequence $resolved_seq_id \
+    -start_tick 1 \
+    -num_ticks $num_ticks \
+    -init_states false \
+    -canonize on]
 
 set eval_seq [dict get $eval_out sequence_id]
 
@@ -91,7 +97,7 @@ check_symsim -sequence $eval_seq -get [list next_hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
+set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables]
 set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
 
 

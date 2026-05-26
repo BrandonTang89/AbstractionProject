@@ -1,10 +1,17 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # =====================================================================
 # Verification of the CAM via a Indexing Transformation with a manually created indexing relation
 # Suppose that the CAM has n entries with d bits each
 # - We let ADDR_WIDTH = log n, DATA_WIDTH = log d
-# 
+#
 # We use a similar indexing relation to that shown in https://dl.acm.org/doi/pdf/10.1145/266021.266056
-# 
+#
 # Our indexing relation should cover the following cases
 # - query is in the CAM at entry 1, 2, ..., n
 # - query is not the the CAM, i.e. each entry is different from the query
@@ -17,11 +24,11 @@
 #   {tagin[0..d-1]}
 # we have 1 variable for whether the query is in the cam or not,
 #   {h}
-# We have ADDR_WIDTH variables for selecting which entry in the CAM is the query (for the case where the CAM is hit) 
+# We have ADDR_WIDTH variables for selecting which entry in the CAM is the query (for the case where the CAM is hit)
 #   {ch[0..ADDR_WIDTH-1]}
-# We have n * DATA_WIDTH variables for selecting which bit in each entry is different from the query (for the case where the CAM is missed) 
+# We have n * DATA_WIDTH variables for selecting which bit in each entry is different from the query (for the case where the CAM is missed)
 #   {em[0..n-1][0..DATA_WIDTH-1]}
-# 
+#
 # This takes O(d + n log d + log n) variables, (logarithmically in d) less than the O(n * d) variables that would be required to represent the entire CAM
 #
 # Our indexing relation is thus of the form
@@ -32,11 +39,11 @@
 #
 # h -> [
 #  AND (i<-0 to n) (
-#     (i == ch) -> [AND j<-0 to DATA_LENGTH (query[j] == mem[i][j]))] 
+#     (i == ch) -> [AND j<-0 to DATA_LENGTH (query[j] == mem[i][j]))]
 #  )
 # ]
 #
-# && 
+# &&
 #
 # NOT h -> [
 #   AND_(i<-0 to n) (
@@ -47,8 +54,8 @@
 # ]
 #
 # =====================================================================
-set DATA_WIDTH 1; # log d
-set ADDR_WIDTH 2; # log n
+set DATA_WIDTH 1 ;# log d
+set ADDR_WIDTH 2 ;# log n
 set DATA_LENGTH [expr 2**$DATA_WIDTH]
 set NUM_ENTRIES [expr 2**$ADDR_WIDTH]
 
@@ -75,8 +82,7 @@ set signals [check_symsim -model $model_id -list signal]
 # == Set up property to check ==
 set properties [dict create \
     spec.assert_hit 4 \
-    spec.assert_next_hit 2 \
-]
+    spec.assert_next_hit 2]
 
 set max_property_tick [max_dict_values $properties]
 
@@ -95,7 +101,7 @@ for {set i 0} {$i < $NUM_ENTRIES} {incr i} {
 set antv [merge_dual_rail_antecedents $ant_query $ant_mem]
 set bdd_variables [get_dual_rail_antecedent_variable_names $antv]
 
-# === Create indexing relation === 
+# === Create indexing relation ===
 # Returns the binary representation of a number, where num = sum (output[i] * 2**i) for i in 0 to numBits-1
 proc get_binary_rep {numBits num} {
     set binaryRep [list]
@@ -211,12 +217,12 @@ set resolved_seq_id [check_symsim -sequence -resolve -antecedent $antecedent_seq
 
 # Run the symbolic simulation
 set num_ticks [expr $max_property_tick + 2]
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_out [check_symsim -eval $model_id \
+    -resolved_sequence $resolved_seq_id \
+    -start_tick 1 \
+    -num_ticks $num_ticks \
+    -init_states false \
+    -canonize on]
 
 set eval_seq [dict get $eval_out sequence_id]
 
@@ -226,7 +232,7 @@ check_symsim -sequence $eval_seq -get [list hit] -verbose
 check_symsim -sequence $eval_seq -get $assertions -verbose
 
 # === Transformation of the property ===
-set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables] 
+set prop_high [weak_preimage $index_rel [TRUE] $bdd_variables]
 set prop_low [weak_preimage $index_rel [FALSE] $bdd_variables]
 
 

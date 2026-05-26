@@ -1,19 +1,26 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # === Helper Functions that Complement symsim_utils.tcl ===
 # You should also import helpers.tcl in your script to use these functions
 
 ########################################
 # Shorthand for BDD expression creation
 ########################################
-proc XOR {a b} { check_symsim -expression -xor $a $b }
-proc XNOR {a b} { check_symsim -expression -xnor $a $b }
-proc IMPLIES {a b} { check_symsim -expression -implies $a $b }
-proc EXISTS_QUANT {tvariables expression} { check_symsim -expression -exist_quantify $expression $tvariables }
-proc FORALL_QUANT {tvariables expression} { check_symsim -expression -forall_quantify $expression $tvariables }
+proc XOR {a b} {check_symsim -expression -xor $a $b}
+proc XNOR {a b} {check_symsim -expression -xnor $a $b}
+proc IMPLIES {a b} {check_symsim -expression -implies $a $b}
+proc EXISTS_QUANT {tvariables expression} {check_symsim -expression -exist_quantify $expression $tvariables}
+proc FORALL_QUANT {tvariables expression} {check_symsim -expression -forall_quantify $expression $tvariables}
 
 #######################################
 # Analogue of create_antecedent for dual rail signals
 #  - Supports wide signals
-#  - Returns a dictionary of the form 
+#  - Returns a dictionary of the form
 # {signal_bit: [(high_expr = bdd_variable@tick, low_expr = NOT bdd_variable@tick, tick:tick) for tick in tick_list]}
 ######################################
 proc create_dual_rail_antecedent {signal tick_list} {
@@ -39,7 +46,7 @@ proc create_dual_rail_antecedent {signal tick_list} {
 proc merge_dual_rail_antecedents {args} {
     set ant [dict create]
     foreach a $args {
-	    dict map {key value} $a {dict append ant $key "$value"}
+        dict map {key value} $a {dict append ant $key "$value"}
     }
     return $ant
 }
@@ -137,7 +144,7 @@ proc get_high_low {tick sim_seq} {
         set high [lindex $seq_tup 0]
         set low [lindex $seq_tup 1]
         set tick_range [lindex $seq_tup 2]
-        
+
         if {[tick_in_range $tick $tick_range]} {
             return [list $high $low]
         }
@@ -149,9 +156,9 @@ proc tick_in_range {tick tick_range} {
     set range [split $tick_range ":"]
     set from [lindex $range 0]
     set to [lindex $range end]
-    
+
     if {$to == "$"} {
-        set to [expr $tick] 
+        set to [expr $tick]
         # tick will be included
     }
 
@@ -187,9 +194,9 @@ proc check_has_top {eval_seq signals} {
 
 # - properties: dictionary of the form {signal: tick}
 # - eval_seq: ID of the output sequence from a symbolic simulation (symsim -eval)
-# - prop_high: high expression required of properties (i.e. weak_preimage of TRUE) 
+# - prop_high: high expression required of properties (i.e. weak_preimage of TRUE)
 #    - this is the dom(R)[X] = ∃T R[X,T] in the 2007 paper.
-# - prop_low: low expression required of properties (i.e. weak_preimage of FALSE) 
+# - prop_low: low expression required of properties (i.e. weak_preimage of FALSE)
 #    - which should be FALSE for properties of the relevant form
 # - verbose: flag to print the results
 
@@ -223,7 +230,7 @@ proc check_properties_against_sim {properties eval_seq prop_high prop_low {verbo
         set property_high_sat [IMPLIES $prop_high $sim_high]
 
         set property_sat [expr {($property_low_sat == [TRUE]) && ($property_high_sat == [TRUE])}]
-        
+
         if {$verbose} {
             puts "Property $property_signal at tick $property_tick satisfied: $property_sat"
             puts "Simulated property high: $sim_high"

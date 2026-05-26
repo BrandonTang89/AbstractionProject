@@ -1,5 +1,12 @@
+# Copyright 2025 University of Oxford
+# Licensed under the Apache License, Version 2.0 (see LICENSE for details).
+# The underlying commands and reports of this script are copyrighted by Cadence.
+# We thank Cadence for granting permission to share our research to help
+# promote and foster the next generation of innovators.
+# Original Authors: Brandon Tang Yu Han and Julia Irvine
+
 # ===== Exprimentation with Conducting a Symbolic Simulation =====
-# This script does a no-abstraction symbolic simulation and shows 
+# This script does a no-abstraction symbolic simulation and shows
 # - the correct property being satisfied
 # - the wrong property being violated
 # - a visualisation of the simulation
@@ -41,12 +48,12 @@ set resolved_seq_id [check_symsim -sequence -resolve -antecedent $sequence_id -n
 
 # Run the symbolic simulation
 set num_ticks 8
-set eval_out [check_symsim  -eval $model_id \
-                            -resolved_sequence $resolved_seq_id \
-                            -start_tick 1 \
-                            -num_ticks $num_ticks \
-                            -init_states false\
-                            -canonize on]
+set eval_out [check_symsim -eval $model_id \
+    -resolved_sequence $resolved_seq_id \
+    -start_tick 1 \
+    -num_ticks $num_ticks \
+    -init_states false \
+    -canonize on]
 # since we do not specify -observation, all signals are tracked
 set eval_seq [dict get $eval_out sequence_id]
 
